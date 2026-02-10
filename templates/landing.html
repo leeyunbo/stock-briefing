@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Briefing - AI 주식 아침 브리핑</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Hero */
+        .hero {
+            max-width: 520px;
+            margin: 0 auto;
+            padding: 100px 24px 60px;
+            text-align: center;
+        }
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 40px;
+            letter-spacing: -0.3px;
+        }
+        .logo-dot {
+            width: 8px; height: 8px;
+            background: #3182f6;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        h1 {
+            font-size: 44px;
+            font-weight: 800;
+            line-height: 1.25;
+            letter-spacing: -1.5px;
+            margin-bottom: 20px;
+        }
+        h1 .highlight {
+            background: linear-gradient(135deg, #3182f6, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            font-size: 17px;
+            color: rgba(255,255,255,0.45);
+            line-height: 1.7;
+            margin-bottom: 48px;
+            letter-spacing: -0.3px;
+        }
+
+        /* Features */
+        .features {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 48px;
+        }
+        .feature {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 24px 16px;
+            transition: background 0.2s;
+        }
+        .feature:hover { background: rgba(255,255,255,0.08); }
+        .feature-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin: 0 auto 14px;
+        }
+        .feature:nth-child(1) .feature-icon { background: rgba(49,130,246,0.15); }
+        .feature:nth-child(2) .feature-icon { background: rgba(167,139,250,0.15); }
+        .feature:nth-child(3) .feature-icon { background: rgba(52,211,153,0.15); }
+        .feature-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: -0.3px;
+        }
+        .feature-desc {
+            font-size: 12px;
+            color: rgba(255,255,255,0.35);
+            line-height: 1.5;
+            letter-spacing: -0.2px;
+        }
+
+        /* Subscribe Form */
+        .subscribe-form {
+            display: flex;
+            gap: 8px;
+            max-width: 420px;
+            margin: 0 auto;
+        }
+        .subscribe-form input {
+            flex: 1;
+            padding: 16px 20px;
+            border: none;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            transition: background 0.2s;
+            letter-spacing: -0.3px;
+        }
+        .subscribe-form input::placeholder { color: rgba(255,255,255,0.25); }
+        .subscribe-form input:focus { background: rgba(255,255,255,0.12); }
+        .subscribe-form button {
+            padding: 16px 32px;
+            background: #3182f6;
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, transform 0.1s;
+            letter-spacing: -0.3px;
+        }
+        .subscribe-form button:hover { background: #1b6cf2; }
+        .subscribe-form button:active { transform: scale(0.97); }
+
+        /* Message */
+        .message {
+            margin-top: 16px;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: -0.3px;
+            animation: slideUp 0.3s ease;
+        }
+        .message.success { background: rgba(52,211,153,0.12); color: #34d399; }
+        .message.warning { background: rgba(251,191,36,0.12); color: #fbbf24; }
+
+        /* Footer link */
+        .footer-link {
+            margin-top: 36px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.3);
+            letter-spacing: -0.3px;
+        }
+        .footer-link a {
+            color: rgba(255,255,255,0.5);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .footer-link a:hover { color: #3182f6; }
+
+        /* Trust */
+        .trust {
+            margin-top: 60px;
+            padding-top: 32px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            font-size: 13px;
+            color: rgba(255,255,255,0.2);
+            letter-spacing: -0.2px;
+        }
+
+        /* Animation */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .hero > * {
+            animation: slideUp 0.6s ease both;
+        }
+        .hero > *:nth-child(1) { animation-delay: 0s; }
+        .hero > *:nth-child(2) { animation-delay: 0.08s; }
+        .hero > *:nth-child(3) { animation-delay: 0.16s; }
+        .hero > *:nth-child(4) { animation-delay: 0.24s; }
+        .hero > *:nth-child(5) { animation-delay: 0.32s; }
+        .hero > *:nth-child(6) { animation-delay: 0.36s; }
+        .hero > *:nth-child(7) { animation-delay: 0.4s; }
+        .hero > *:nth-child(8) { animation-delay: 0.44s; }
+
+        @media (max-width: 540px) {
+            .hero { padding: 64px 20px 40px; }
+            h1 { font-size: 32px; }
+            .features { flex-direction: column; }
+            .subscribe-form { flex-direction: column; }
+            .subscribe-form button { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <div class="logo"><span class="logo-dot"></span>Stock Briefing</div>
+
+        <h1>출근 전 3분,<br><span class="highlight">오늘의 주식 시장</span></h1>
+
+        <p class="subtitle">
+            매일 아침 7시, AI가 정리한<br>
+            전일 공시 · 시장 · 뉴스 요약을 받아보세요.
+        </p>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">📊</div>
+                <div class="feature-title">시장 요약</div>
+                <div class="feature-desc">코스피/코스닥<br>외인·기관 동향</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📋</div>
+                <div class="feature-title">공시 분석</div>
+                <div class="feature-desc">DART 주요 공시<br>AI 코멘트</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📰</div>
+                <div class="feature-title">뉴스 핵심</div>
+                <div class="feature-desc">경제·주식 뉴스<br>핵심만 요약</div>
+            </div>
+        </div>
+
+        <form class="subscribe-form" action="/subscribe" method="post">
+            <input type="email" name="email" placeholder="이메일 주소" required>
+            <button type="submit">무료 구독</button>
+        </form>
+
+        {% if message %}
+        <div class="message {{ message_type }}">{{ message }}</div>
+        {% endif %}
+
+        <div class="footer-link">
+            <a href="/archive">지난 브리핑 보기 →</a>
+        </div>
+
+        <div class="trust">매일 아침, 무료로 발송됩니다</div>
+    </div>
+</body>
+</html>

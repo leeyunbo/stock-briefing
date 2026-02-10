@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>브리핑 아카이브 - Stock Briefing</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 580px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 36px;
+        }
+        .header h1 {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+        .back-link {
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: -0.3px;
+            transition: color 0.15s;
+        }
+        .back-link:hover { color: #3182f6; }
+
+        /* Search */
+        .search-form { margin-bottom: 28px; }
+        .search-form input {
+            width: 100%;
+            padding: 14px 18px;
+            border: none;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            transition: background 0.2s;
+            letter-spacing: -0.3px;
+        }
+        .search-form input::placeholder { color: rgba(255,255,255,0.2); }
+        .search-form input:focus { background: rgba(255,255,255,0.1); }
+
+        /* Briefing List */
+        .briefing-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .briefing-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            text-decoration: none;
+            color: inherit;
+            transition: background 0.15s, transform 0.1s;
+        }
+        .briefing-item:hover { background: rgba(255,255,255,0.08); }
+        .briefing-item:active { transform: scale(0.99); }
+        .briefing-icon {
+            width: 44px; height: 44px;
+            background: rgba(49,130,246,0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .briefing-info { flex: 1; min-width: 0; }
+        .briefing-title {
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .briefing-date {
+            font-size: 13px;
+            color: rgba(255,255,255,0.3);
+            margin-top: 3px;
+            letter-spacing: -0.2px;
+        }
+        .briefing-arrow {
+            color: rgba(255,255,255,0.15);
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        /* Empty */
+        .empty {
+            text-align: center;
+            padding: 80px 0;
+        }
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+        .empty-text {
+            font-size: 15px;
+            color: rgba(255,255,255,0.25);
+            line-height: 1.7;
+            letter-spacing: -0.3px;
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .briefing-item {
+            animation: fadeIn 0.4s ease both;
+        }
+        .briefing-item:nth-child(1) { animation-delay: 0.02s; }
+        .briefing-item:nth-child(2) { animation-delay: 0.06s; }
+        .briefing-item:nth-child(3) { animation-delay: 0.1s; }
+        .briefing-item:nth-child(4) { animation-delay: 0.14s; }
+        .briefing-item:nth-child(5) { animation-delay: 0.18s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>아카이브</h1>
+            <a class="back-link" href="/">← 홈</a>
+        </div>
+
+        <form class="search-form" action="/archive" method="get">
+            <input type="text" name="q" value="{{ search_query }}" placeholder="브리핑 내용 검색">
+        </form>
+
+        {% if briefings %}
+        <ul class="briefing-list">
+            {% for b in briefings %}
+            <a class="briefing-item" href="/archive/{{ b.date }}">
+                <div class="briefing-icon">📊</div>
+                <div class="briefing-info">
+                    <div class="briefing-title">{{ b.title }}</div>
+                    <div class="briefing-date">{{ b.date }}</div>
+                </div>
+                <div class="briefing-arrow">›</div>
+            </a>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty">
+            <div class="empty-icon">📭</div>
+            <div class="empty-text">
+                {% if search_query %}
+                "{{ search_query }}" 검색 결과가 없습니다.
+                {% else %}
+                아직 브리핑이 없습니다.<br>내일 아침 첫 브리핑을 기다려주세요!
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
