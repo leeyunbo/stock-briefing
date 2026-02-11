@@ -6,3 +6,5 @@ __pycache__/
 .vscode/
 *.db
 /briefing_*.html
+server.log
+*.swp

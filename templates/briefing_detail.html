@@ -67,11 +67,14 @@
             letter-spacing: -0.3px;
         }
         .content h2 {
-            font-size: 18px;
-            font-weight: 800;
-            margin: 32px 0 16px;
+            font-size: 17px;
+            font-weight: 700;
+            margin: 32px 0 14px;
             letter-spacing: -0.5px;
             color: #fff;
+            padding-left: 14px;
+            border-left: 4px solid #3182f6;
+            line-height: 1.4;
         }
         .content h2:first-child { margin-top: 0; }
         .content table {
@@ -94,18 +97,28 @@
             border-bottom: 1px solid rgba(255,255,255,0.04);
         }
         .content tr:last-child td { border-bottom: none; }
-        .content ul, .content ol { padding-left: 20px; margin: 12px 0; }
+        .content ul, .content ol {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 8px 0;
+        }
         .content li {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 14px 16px;
             margin-bottom: 10px;
             font-size: 14px;
             line-height: 1.75;
             color: rgba(255,255,255,0.75);
+            transition: background 0.15s;
         }
+        .content li:hover { background: rgba(255,255,255,0.07); }
         .content li strong { color: #fff; }
         .content p {
             margin-bottom: 14px;
             font-size: 14px;
-            color: rgba(255,255,255,0.75);
+            color: rgba(255,255,255,0.65);
         }
         .content p strong { color: #fff; }
         .content .up { color: #f04452; font-weight: 700; }

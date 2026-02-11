@@ -3,6 +3,7 @@
 import httpx
 
 NAVER_STOCK_API = "https://m.stock.naver.com/api"
+NAVER_POLLING_API = "https://polling.finance.naver.com/api/realtime/domestic/stock"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
@@ -28,42 +29,78 @@ async def fetch_market_summary() -> dict:
             except Exception:
                 result[name] = None
 
-        # 코스피 시총 TOP10
+        # 코스피 시총 TOP10 (종목코드 수집 → polling API로 시간외 반영 가격)
         try:
-            resp = await client.get(f"{NAVER_STOCK_API}/stocks/marketValue", params={"market": "KOSPI", "page": 1, "pageSize": 10})
+            resp = await client.get(
+                f"{NAVER_STOCK_API}/stocks/marketValue",
+                params={"market": "KOSPI", "page": 1, "pageSize": 10},
+            )
             if resp.status_code == 200:
-                result["kospi_top10"] = _parse_stocks(resp.json())
+                stocks = resp.json().get("stocks", [])
+                top10 = []
+                for s in stocks:
+                    item_code = s.get("itemCode", "")
+                    stock_data = await _fetch_stock_with_afterhours(client, item_code)
+                    if stock_data:
+                        top10.append(stock_data)
+                    else:
+                        # polling 실패 시 기본 데이터 사용
+                        top10.append({
+                            "name": s.get("stockName", ""),
+                            "close": s.get("closePrice", ""),
+                            "change_pct": s.get("fluctuationsRatio", ""),
+                            "direction": s.get("compareToPreviousPrice", {}).get("text", ""),
+                            "volume": s.get("accumulatedTradingVolume", ""),
+                        })
+                result["kospi_top10"] = top10
         except Exception:
             result["kospi_top10"] = []
 
-        # 급등 상위 5 (간단히)
-        try:
-            resp = await client.get(f"{NAVER_STOCK_API}/stocks/up", params={"market": "KOSPI", "page": 1, "pageSize": 5})
-            if resp.status_code == 200:
-                result["top_rising"] = _parse_stocks(resp.json())
-        except Exception:
-            result["top_rising"] = []
-
-        # 급락 상위 5 (간단히)
-        try:
-            resp = await client.get(f"{NAVER_STOCK_API}/stocks/down", params={"market": "KOSPI", "page": 1, "pageSize": 5})
-            if resp.status_code == 200:
-                result["top_falling"] = _parse_stocks(resp.json())
-        except Exception:
-            result["top_falling"] = []
+        # 투자자별 매매동향 (외인/기관/개인)
+        for code, name in [("KOSPI", "kospi"), ("KOSDAQ", "kosdaq")]:
+            try:
+                resp = await client.get(f"{NAVER_STOCK_API}/index/{code}/trend")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    result[f"{name}_investor"] = {
+                        "personal": data.get("personalValue", ""),
+                        "foreign": data.get("foreignValue", ""),
+                        "institutional": data.get("institutionalValue", ""),
+                    }
+            except Exception:
+                result[f"{name}_investor"] = None
 
     return result
 
 
-def _parse_stocks(data: dict) -> list[dict]:
-    """네이버 금융 API 응답에서 종목 리스트를 파싱한다."""
-    return [
-        {
-            "name": s.get("stockName", ""),
-            "close": s.get("closePrice", ""),
-            "change_pct": s.get("fluctuationsRatio", ""),
-            "direction": s.get("compareToPreviousPrice", {}).get("text", ""),
-            "volume": s.get("accumulatedTradingVolume", ""),
+async def _fetch_stock_with_afterhours(client: httpx.AsyncClient, item_code: str) -> dict | None:
+    """polling API로 시간외 반영 가격을 가져온다. 시간외 데이터가 있으면 시간외 가격 사용."""
+    try:
+        resp = await client.get(f"{NAVER_POLLING_API}/{item_code}")
+        if resp.status_code != 200:
+            return None
+
+        d = resp.json()["datas"][0]
+        over = d.get("overMarketPriceInfo") or {}
+
+        # 시간외 데이터가 있으면 시간외 가격/등락률 사용
+        if over.get("overPrice"):
+            return {
+                "name": d.get("stockName", ""),
+                "close": over["overPrice"],
+                "change_pct": over.get("fluctuationsRatio", d.get("fluctuationsRatio", "")),
+                "direction": over.get("compareToPreviousPrice", {}).get("text",
+                             d.get("compareToPreviousPrice", {}).get("text", "")),
+                "volume": d.get("accumulatedTradingVolume", ""),
+            }
+
+        # 시간외 없으면 정규장 데이터
+        return {
+            "name": d.get("stockName", ""),
+            "close": d.get("closePrice", ""),
+            "change_pct": d.get("fluctuationsRatio", ""),
+            "direction": d.get("compareToPreviousPrice", {}).get("text", ""),
+            "volume": d.get("accumulatedTradingVolume", ""),
         }
-        for s in data.get("stocks", [])
-    ]
+    except Exception:
+        return None
