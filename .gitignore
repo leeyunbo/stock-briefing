@@ -8,3 +8,5 @@ __pycache__/
 /briefing_*.html
 server.log
 *.swp
+.claude/
+test_send.py
