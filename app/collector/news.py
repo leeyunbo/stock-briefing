@@ -4,7 +4,7 @@ import re
 
 import httpx
 
-from app.config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET
+from app.config import settings
 
 NAVER_SEARCH_URL = "https://openapi.naver.com/v1/search/news.json"
 
@@ -21,8 +21,8 @@ async def fetch_news(query: str = "주식 증시", count: int = 5) -> list[dict]
         [{"title": "...", "description": "...", "link": "...", "pub_date": "..."}, ...]
     """
     headers = {
-        "X-Naver-Client-Id": NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
+        "X-Naver-Client-Id": settings.naver_client_id,
+        "X-Naver-Client-Secret": settings.naver_client_secret,
     }
     params = {
         "query": query,

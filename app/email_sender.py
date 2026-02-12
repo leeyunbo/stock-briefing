@@ -4,23 +4,23 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from app.config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
+from app.config import settings
 
 
 def send_email(to_email: str, subject: str, html_body: str) -> bool:
     """HTML 이메일을 발송한다."""
     msg = MIMEMultipart("alternative")
-    msg["From"] = SMTP_USER
+    msg["From"] = settings.smtp_user
     msg["To"] = to_email
     msg["Subject"] = subject
 
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(SMTP_USER, to_email, msg.as_string())
+            server.login(settings.smtp_user, settings.smtp_password)
+            server.sendmail(settings.smtp_user, to_email, msg.as_string())
         return True
     except Exception as e:
         print(f"이메일 발송 실패 ({to_email}): {e}")

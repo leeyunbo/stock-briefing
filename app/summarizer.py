@@ -1,6 +1,6 @@
 """AI 브리핑 요약 생성 - Claude / Gemini 전환 가능."""
 
-from app.config import AI_PROVIDER, ANTHROPIC_API_KEY, GEMINI_API_KEY
+from app.config import settings
 
 SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 뉴스레터 에디터예요.
 뉴닉(Newneek) 스타일로 친근하고 쉽게 아침 브리핑을 작성해주세요.
@@ -41,7 +41,7 @@ SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 뉴스레터 에디
 
 def _call_claude(prompt: str) -> str:
     import anthropic
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     message = client.messages.create(
         model="claude-sonnet-4-5-20250929",
         max_tokens=3000,
@@ -53,7 +53,7 @@ def _call_claude(prompt: str) -> str:
 
 def _call_gemini(prompt: str) -> str:
     from google import genai
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = genai.Client(api_key=settings.gemini_api_key)
     response = client.models.generate_content(
         model="gemini-2.0-flash",
         contents=f"{SYSTEM_PROMPT}\n\n{prompt}",
@@ -80,7 +80,7 @@ def generate_briefing(
     """수집된 데이터를 AI에게 보내 브리핑 HTML을 생성한다."""
     prompt = _build_prompt(market_data, disclosures, news, stock_news)
 
-    if AI_PROVIDER == "gemini":
+    if settings.ai_provider == "gemini":
         return _strip_code_block(_call_gemini(prompt))
     return _strip_code_block(_call_claude(prompt))
 

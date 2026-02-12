@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import httpx
 
-from app.config import DART_API_KEY
+from app.config import settings
 
 DART_LIST_URL = "https://opendart.fss.or.kr/api/list.json"
 
@@ -21,7 +21,7 @@ async def fetch_disclosures(target_date: date | None = None) -> list[dict]:
     date_str = target_date.strftime("%Y%m%d")
 
     params = {
-        "crtfc_key": DART_API_KEY,
+        "crtfc_key": settings.dart_api_key,
         "bgn_de": date_str,
         "end_de": date_str,
         "page_count": 30,

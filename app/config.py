@@ -1,23 +1,41 @@
-import os
-from dotenv import load_dotenv
+"""애플리케이션 설정 - pydantic-settings로 환경변수를 타입 안전하게 관리한다.
 
-load_dotenv()
+스프링의 @ConfigurationProperties + @Validated 와 동일한 역할:
+- 환경변수 → 필드 자동 바인딩 (스프링의 relaxed binding과 유사)
+- 기본값 없는 필드 = 필수값 → 앱 시작 시 ValidationError (스프링의 @NotNull)
+- Literal 타입 = 허용값 제한 (스프링의 @Pattern 또는 enum 바인딩)
+"""
 
-# API Keys
-DART_API_KEY = os.getenv("DART_API_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
-NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
+from typing import Literal
 
-# AI Provider: "claude" or "gemini"
-AI_PROVIDER = os.getenv("AI_PROVIDER", "claude")
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# SMTP
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
-# Database
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///briefing.db")
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
+
+    # API Keys (필수 — 없으면 앱 시작 실패)
+    dart_api_key: str
+    anthropic_api_key: str
+    gemini_api_key: str
+    naver_client_id: str
+    naver_client_secret: str
+
+    # AI Provider: "claude" 또는 "gemini"만 허용
+    ai_provider: Literal["claude", "gemini"] = "claude"
+
+    # SMTP
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587  # str→int 자동 변환 (스프링의 @Value 타입 변환)
+    smtp_user: str
+    smtp_password: str
+
+    # Database
+    database_url: str = "sqlite+aiosqlite:///briefing.db"
+
+
+# 싱글턴 인스턴스 — 스프링의 @Bean과 유사
+settings = Settings()

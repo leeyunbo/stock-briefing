@@ -2,6 +2,7 @@ httpx==0.28.1
 anthropic==0.52.0
 python-dotenv==1.1.0
 pydantic==2.11.3
+pydantic-settings==2.9.1
 pykrx==1.0.50
 fastapi==0.115.12
 uvicorn==0.34.2
