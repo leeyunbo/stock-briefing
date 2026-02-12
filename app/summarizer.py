@@ -1,5 +1,6 @@
 """AI 브리핑 요약 생성 - Claude / Gemini 전환 가능."""
 
+from app.collector.news import NewsArticle
 from app.config import settings
 
 SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 뉴스레터 에디터예요.
@@ -74,8 +75,8 @@ def _strip_code_block(text: str) -> str:
 def generate_briefing(
     market_data: dict,
     disclosures: list[dict],
-    news: list[dict],
-    stock_news: dict[str, list[dict]] | None = None,
+    news: list[NewsArticle],
+    stock_news: dict[str, list[NewsArticle]] | None = None,
 ) -> str:
     """수집된 데이터를 AI에게 보내 브리핑 HTML을 생성한다."""
     prompt = _build_prompt(market_data, disclosures, news, stock_news)
@@ -88,8 +89,8 @@ def generate_briefing(
 def _build_prompt(
     market_data: dict,
     disclosures: list[dict],
-    news: list[dict],
-    stock_news: dict[str, list[dict]] | None = None,
+    news: list[NewsArticle],
+    stock_news: dict[str, list[NewsArticle]] | None = None,
 ) -> str:
     """수집 데이터를 프롬프트 텍스트로 변환한다."""
     parts = [f"## 날짜: {market_data.get('date', '알 수 없음')}\n"]
@@ -123,7 +124,7 @@ def _build_prompt(
         for stock_name, articles in stock_news.items():
             parts.append(f"\n### {stock_name}")
             for a in articles:
-                parts.append(f"- {a['title']}: {a['description']}")
+                parts.append(f"- {a.title}: {a.description}")
 
     # 공시 데이터
     parts.append("\n## 공시 데이터")
@@ -137,7 +138,7 @@ def _build_prompt(
     parts.append("\n## 뉴스 데이터")
     if news:
         for n in news:
-            parts.append(f"- {n['title']}: {n['description']}")
+            parts.append(f"- {n.title}: {n.description}")
     else:
         parts.append("- 주요 뉴스 없음")
 
