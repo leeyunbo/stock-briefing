@@ -1,5 +1,6 @@
 """AI 브리핑 요약 생성 - Claude / Gemini 전환 가능."""
 
+from app.collector.dart import Disclosure
 from app.collector.news import NewsArticle
 from app.config import settings
 
@@ -74,7 +75,7 @@ def _strip_code_block(text: str) -> str:
 
 def generate_briefing(
     market_data: dict,
-    disclosures: list[dict],
+    disclosures: list[Disclosure],
     news: list[NewsArticle],
     stock_news: dict[str, list[NewsArticle]] | None = None,
 ) -> str:
@@ -88,7 +89,7 @@ def generate_briefing(
 
 def _build_prompt(
     market_data: dict,
-    disclosures: list[dict],
+    disclosures: list[Disclosure],
     news: list[NewsArticle],
     stock_news: dict[str, list[NewsArticle]] | None = None,
 ) -> str:
@@ -130,7 +131,7 @@ def _build_prompt(
     parts.append("\n## 공시 데이터")
     if disclosures:
         for d in disclosures:
-            parts.append(f"- [{d['corp_name']}] {d['report_nm']} (제출인: {d['flr_nm']})")
+            parts.append(f"- [{d.corp_name}] {d.report_nm} (제출인: {d.flr_nm})")
     else:
         parts.append("- 주요 공시 없음")
 
