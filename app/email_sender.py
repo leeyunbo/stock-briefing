@@ -1,10 +1,13 @@
 """SMTP 이메일 발송기."""
 
+import logging
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def send_email(to_email: str, subject: str, html_body: str) -> bool:
@@ -23,7 +26,7 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
             server.sendmail(settings.smtp_user, to_email, msg.as_string())
         return True
     except Exception as e:
-        print(f"이메일 발송 실패 ({to_email}): {e}")
+        logger.error("이메일 발송 실패 (%s): %s", to_email, e)
         return False
 
 

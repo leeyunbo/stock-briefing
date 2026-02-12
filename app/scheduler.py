@@ -1,10 +1,13 @@
 """스케줄러 - 매일 아침 브리핑 생성 및 발송."""
 
 import asyncio
+import logging
 import re
 from datetime import date
 
 from sqlalchemy import select
+
+logger = logging.getLogger(__name__)
 
 from app.collector.dart import fetch_disclosures
 from app.collector.market import fetch_market_summary
@@ -18,7 +21,7 @@ from app.models import Subscriber, Briefing
 async def run_briefing_pipeline() -> str | None:
     """전체 브리핑 파이프라인을 실행한다: 수집 → 요약 → 저장 → 발송."""
     today = date.today()
-    print(f"[{today}] 브리핑 파이프라인 시작...")
+    logger.info("브리핑 파이프라인 시작: %s", today)
 
     # 1. 데이터 수집 (병렬)
     market_data, disclosures, news = await asyncio.gather(
@@ -26,7 +29,7 @@ async def run_briefing_pipeline() -> str | None:
         fetch_disclosures(),
         fetch_stock_news(),
     )
-    print(f"  수집 완료: 공시 {len(disclosures)}건, 뉴스 {len(news)}건")
+    logger.info("수집 완료: 공시 %d건, 뉴스 %d건", len(disclosures), len(news))
 
     # 1-2. 코스피 TOP10 중 등락률 큰 종목 뉴스 추가 수집
     mover_names = [
@@ -34,12 +37,12 @@ async def run_briefing_pipeline() -> str | None:
         if abs(float(s.get("change_pct", "0").replace(",", ""))) >= 2.0
     ]
     stock_news = await fetch_news_for_stocks(mover_names)
-    print(f"  종목별 뉴스 수집: {len(stock_news)}종목")
+    logger.info("종목별 뉴스 수집: %d종목", len(stock_news))
 
     # 2. AI 요약
     briefing_html = generate_briefing(market_data, disclosures, news, stock_news)
     title = f"{today.strftime('%Y년 %m월 %d일')} 주식 아침 브리핑"
-    print(f"  요약 완료: {title}")
+    logger.info("요약 완료: %s", title)
 
     # 3. DB 저장 (같은 날 재실행 시 업데이트)
     async with async_session() as db:
@@ -60,9 +63,9 @@ async def run_briefing_pipeline() -> str | None:
     if emails:
         email_html = _wrap_email_template(title, briefing_html)
         results = send_briefing_to_subscribers(emails, title, email_html)
-        print(f"  발송 완료: 성공 {results['success']}, 실패 {results['fail']}")
+        logger.info("발송 완료: 성공 %d, 실패 %d", results["success"], results["fail"])
     else:
-        print("  구독자 없음 - 발송 건너뜀")
+        logger.info("구독자 없음 — 발송 건너뜀")
 
     return briefing_html
 
@@ -187,5 +190,5 @@ def start_scheduler():
         id="daily_briefing",
     )
     scheduler.start()
-    print("스케줄러 시작: 평일 매일 아침 7시 브리핑 발송")
+    logger.info("스케줄러 시작: 평일 매일 아침 7시 브리핑 발송")
     return scheduler
