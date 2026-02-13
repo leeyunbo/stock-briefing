@@ -1,6 +1,7 @@
 """AI 브리핑 요약 생성 - Claude / Gemini 전환 가능."""
 
 from app.collector.dart import Disclosure
+from app.collector.market import MarketSummary
 from app.collector.news import NewsArticle
 from app.config import settings
 
@@ -74,13 +75,13 @@ def _strip_code_block(text: str) -> str:
 
 
 def generate_briefing(
-    market_data: dict,
+    market: MarketSummary,
     disclosures: list[Disclosure],
     news: list[NewsArticle],
     stock_news: dict[str, list[NewsArticle]] | None = None,
 ) -> str:
     """수집된 데이터를 AI에게 보내 브리핑 HTML을 생성한다."""
-    prompt = _build_prompt(market_data, disclosures, news, stock_news)
+    prompt = _build_prompt(market, disclosures, news, stock_news)
 
     if settings.ai_provider == "gemini":
         return _strip_code_block(_call_gemini(prompt))
@@ -88,36 +89,34 @@ def generate_briefing(
 
 
 def _build_prompt(
-    market_data: dict,
+    market: MarketSummary,
     disclosures: list[Disclosure],
     news: list[NewsArticle],
     stock_news: dict[str, list[NewsArticle]] | None = None,
 ) -> str:
     """수집 데이터를 프롬프트 텍스트로 변환한다."""
-    parts = [f"## 날짜: {market_data.get('date', '알 수 없음')}\n"]
+    parts = [f"## 날짜: {market.date or '알 수 없음'}\n"]
 
     # 시장 데이터
     parts.append("## 시장 데이터")
-    for index_name in ["kospi", "kosdaq"]:
-        idx = market_data.get(index_name)
+    for idx in [market.kospi, market.kosdaq]:
         if idx:
-            parts.append(f"- {idx['name']}: 종가 {idx['close']}, 전일대비 {idx['change']} ({idx['direction']}), 등락률 {idx['change_pct']}%")
+            parts.append(f"- {idx.name}: 종가 {idx.close}, 전일대비 {idx.change} ({idx.direction}), 등락률 {idx.change_pct}%")
 
     # 투자자별 매매동향
-    kospi_inv = market_data.get("kospi_investor")
-    kosdaq_inv = market_data.get("kosdaq_investor")
-    if kospi_inv or kosdaq_inv:
+    if market.kospi_investor or market.kosdaq_investor:
         parts.append("\n## 투자자별 매매동향 (단위: 억원)")
-        if kospi_inv:
-            parts.append(f"- 코스피: 개인 {kospi_inv['personal']}, 외국인 {kospi_inv['foreign']}, 기관 {kospi_inv['institutional']}")
-        if kosdaq_inv:
-            parts.append(f"- 코스닥: 개인 {kosdaq_inv['personal']}, 외국인 {kosdaq_inv['foreign']}, 기관 {kosdaq_inv['institutional']}")
+        if market.kospi_investor:
+            inv = market.kospi_investor
+            parts.append(f"- 코스피: 개인 {inv.personal}, 외국인 {inv.foreign}, 기관 {inv.institutional}")
+        if market.kosdaq_investor:
+            inv = market.kosdaq_investor
+            parts.append(f"- 코스닥: 개인 {inv.personal}, 외국인 {inv.foreign}, 기관 {inv.institutional}")
 
-    kospi_top = market_data.get("kospi_top10", [])
-    if kospi_top:
+    if market.kospi_top10:
         parts.append("\n## 코스피 시총 TOP10")
-        for s in kospi_top:
-            parts.append(f"- {s['name']}: {s['close']}원 ({s['direction']} {s['change_pct']}%)")
+        for s in market.kospi_top10:
+            parts.append(f"- {s.name}: {s.close}원 ({s.direction} {s.change_pct}%)")
 
     # 종목별 뉴스 (대장주 이유 분석용)
     if stock_news:

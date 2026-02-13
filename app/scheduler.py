@@ -24,7 +24,7 @@ async def run_briefing_pipeline() -> str | None:
     logger.info("브리핑 파이프라인 시작: %s", today)
 
     # 1. 데이터 수집 (병렬)
-    market_data, disclosures, news = await asyncio.gather(
+    market, disclosures, news = await asyncio.gather(
         fetch_market_summary(),
         fetch_disclosures(),
         fetch_stock_news(),
@@ -33,14 +33,14 @@ async def run_briefing_pipeline() -> str | None:
 
     # 1-2. 코스피 TOP10 중 등락률 큰 종목 뉴스 추가 수집
     mover_names = [
-        s["name"] for s in market_data.get("kospi_top10", [])
-        if abs(float(s.get("change_pct", "0").replace(",", ""))) >= 2.0
+        s.name for s in market.kospi_top10
+        if abs(float(s.change_pct.replace(",", "") or "0")) >= 2.0
     ]
     stock_news = await fetch_news_for_stocks(mover_names)
     logger.info("종목별 뉴스 수집: %d종목", len(stock_news))
 
     # 2. AI 요약
-    briefing_html = generate_briefing(market_data, disclosures, news, stock_news)
+    briefing_html = generate_briefing(market, disclosures, news, stock_news)
     title = f"{today.strftime('%Y년 %m월 %d일')} 주식 아침 브리핑"
     logger.info("요약 완료: %s", title)
 
