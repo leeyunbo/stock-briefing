@@ -109,7 +109,7 @@ async def send_emails(result: BriefingResult) -> None:
         return
 
     email_html = render_email(result.title, result.html)
-    results = send_briefing_to_subscribers(emails, result.title, email_html)
+    results = await send_briefing_to_subscribers(emails, result.title, email_html)
     logger.info("발송 완료: 성공 %d, 실패 %d", results["success"], results["fail"])
 
 

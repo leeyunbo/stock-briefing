@@ -50,7 +50,6 @@ async def _fetch_by_type(
         return data["list"]
     return []
 
-
 async def fetch_disclosures(target_date: date | None = None) -> list[Disclosure]:
     """전일(또는 지정일) 주요 공시 목록을 가져온다."""
     if target_date is None:

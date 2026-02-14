@@ -9,4 +9,5 @@ __pycache__/
 server.log
 *.swp
 .claude/
+.review/
 test_send.py

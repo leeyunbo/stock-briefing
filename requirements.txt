@@ -13,3 +13,4 @@ sqlalchemy==2.0.40
 greenlet==3.2.3
 python-multipart==0.0.20
 google-genai==1.14.0
+tenacity==9.1.4
