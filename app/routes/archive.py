@@ -1,9 +1,15 @@
-"""브리핑 아카이브 페이지."""
+"""브리핑 아카이브 페이지.
 
-from fastapi import APIRouter, Depends, Request
+스프링 대응:
+- Query(ge=1) = @RequestParam @Min(1) (파라미터 검증)
+- offset/limit = Pageable + Page<T> (페이지네이션)
+- func.count() = JPA의 countQuery (전체 건수 조회)
+"""
+
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -12,20 +18,40 @@ from app.models import Briefing
 router = APIRouter(prefix="/archive")
 templates = Jinja2Templates(directory="templates")
 
+PAGE_SIZE = 10
+
 
 @router.get("", response_class=HTMLResponse)
-async def archive_list(request: Request, q: str = "", db: AsyncSession = Depends(get_db)):
-    query = select(Briefing).order_by(Briefing.date.desc())
+async def archive_list(
+    request: Request,
+    q: str = "",
+    page: int = Query(default=1, ge=1),
+    db: AsyncSession = Depends(get_db),
+):
+    base_query = select(Briefing)
     if q:
-        query = query.where(Briefing.content_html.contains(q) | Briefing.title.contains(q))
+        base_query = base_query.where(
+            Briefing.content_html.contains(q) | Briefing.title.contains(q)
+        )
 
-    result = await db.execute(query)
-    briefings = result.scalars().all()
+    # 전체 건수 조회 (페이지 계산용)
+    count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
+    total = count_result.scalar()
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+
+    # offset/limit 페이지네이션
+    offset = (page - 1) * PAGE_SIZE
+    rows = await db.execute(
+        base_query.order_by(Briefing.date.desc()).offset(offset).limit(PAGE_SIZE)
+    )
+    briefings = rows.scalars().all()
 
     return templates.TemplateResponse("archive.html", {
         "request": request,
         "briefings": briefings,
         "search_query": q,
+        "page": page,
+        "total_pages": total_pages,
     })
 
 

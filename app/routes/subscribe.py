@@ -1,8 +1,14 @@
-"""구독 신청 API."""
+"""구독 신청 API.
+
+스프링 대응:
+- EmailStr = @Email @Valid (입력 검증)
+- RequestValidationError 핸들러 = @ExceptionHandler(MethodArgumentNotValidException.class)
+"""
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +25,11 @@ async def landing_page(request: Request):
 
 
 @router.post("/subscribe")
-async def subscribe(request: Request, email: str = Form(...), db: AsyncSession = Depends(get_db)):
+async def subscribe(
+    request: Request,
+    email: EmailStr = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
     # 중복 체크
     existing = await db.execute(select(Subscriber).where(Subscriber.email == email))
     if existing.scalar_one_or_none():

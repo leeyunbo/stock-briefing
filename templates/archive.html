@@ -123,6 +123,39 @@
             letter-spacing: -0.3px;
         }
 
+        /* Pagination */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 32px;
+        }
+        .pagination a, .pagination span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+        .pagination a {
+            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.04);
+        }
+        .pagination a:hover { background: rgba(255,255,255,0.1); }
+        .pagination .current {
+            color: #fff;
+            background: #3182f6;
+        }
+        .pagination .disabled {
+            color: rgba(255,255,255,0.15);
+            pointer-events: none;
+        }
+
         /* Animation */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(6px); }
@@ -162,6 +195,31 @@
             </a>
             {% endfor %}
         </ul>
+
+        {% if total_pages > 1 %}
+        <nav class="pagination">
+            {% if page > 1 %}
+            <a href="/archive?page={{ page - 1 }}{% if search_query %}&q={{ search_query }}{% endif %}">‹</a>
+            {% else %}
+            <span class="disabled">‹</span>
+            {% endif %}
+
+            {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <span class="current">{{ p }}</span>
+            {% else %}
+            <a href="/archive?page={{ p }}{% if search_query %}&q={{ search_query }}{% endif %}">{{ p }}</a>
+            {% endif %}
+            {% endfor %}
+
+            {% if page < total_pages %}
+            <a href="/archive?page={{ page + 1 }}{% if search_query %}&q={{ search_query }}{% endif %}">›</a>
+            {% else %}
+            <span class="disabled">›</span>
+            {% endif %}
+        </nav>
+        {% endif %}
+
         {% else %}
         <div class="empty">
             <div class="empty-icon">📭</div>
