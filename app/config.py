@@ -24,8 +24,10 @@ class Settings(BaseSettings):
     naver_client_id: str
     naver_client_secret: str
 
-    # AI Provider: "claude" 또는 "gemini"만 허용
+    # AI Provider
     ai_provider: Literal["claude", "gemini"] = "claude"
+    claude_model: str = "claude-sonnet-4-5-20250929"
+    gemini_model: str = "gemini-2.0-flash"
 
     # SMTP
     smtp_host: str = "smtp.gmail.com"

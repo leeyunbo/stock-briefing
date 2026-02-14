@@ -1,9 +1,77 @@
-"""AI 브리핑 요약 생성 - Claude / Gemini 전환 가능."""
+"""AI 브리핑 요약 생성 — Protocol + Strategy 패턴.
+
+스프링의 Interface + @Qualifier 패턴과 대응:
+- Protocol = interface (구조적 타이핑 — implements 선언 불필요)
+- ClaudeProvider / GeminiProvider = 구현체
+- get_provider() = @Qualifier 또는 @ConditionalOnProperty 팩토리
+"""
+
+from typing import Protocol
 
 from app.collector.dart import Disclosure
 from app.collector.market import MarketSummary
 from app.collector.news import NewsArticle
 from app.config import settings
+
+
+# ── Protocol 정의 (스프링의 interface AiProvider) ──
+
+
+class AiProvider(Protocol):
+    """AI 제공자 인터페이스.
+
+    자바와 달리 implements 선언이 필요 없다.
+    call() 메서드 시그니처만 맞으면 AiProvider로 인정된다 (덕 타이핑).
+    """
+
+    def call(self, system_prompt: str, user_prompt: str) -> str: ...
+
+
+# ── 구현체 (스프링의 @Service + implements AiProvider) ──
+
+
+class ClaudeProvider:
+    """Claude API 구현체."""
+
+    def call(self, system_prompt: str, user_prompt: str) -> str:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        message = client.messages.create(
+            model=settings.claude_model,
+            max_tokens=3000,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        return message.content[0].text
+
+
+class GeminiProvider:
+    """Gemini API 구현체."""
+
+    def call(self, system_prompt: str, user_prompt: str) -> str:
+        from google import genai
+
+        client = genai.Client(api_key=settings.gemini_api_key)
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=f"{system_prompt}\n\n{user_prompt}",
+        )
+        return response.text
+
+
+# ── 팩토리 함수 (스프링의 @ConditionalOnProperty) ──
+
+
+def _get_provider() -> AiProvider:
+    """설정에 따라 AI 제공자를 반환한다."""
+    if settings.ai_provider == "gemini":
+        return GeminiProvider()
+    return ClaudeProvider()
+
+
+# ── 시스템 프롬프트 ──
+
 
 SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 뉴스레터 에디터예요.
 뉴닉(Newneek) 스타일로 친근하고 쉽게 아침 브리핑을 작성해주세요.
@@ -42,36 +110,7 @@ SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 뉴스레터 에디
 """
 
 
-def _call_claude(prompt: str) -> str:
-    import anthropic
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    message = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=3000,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return message.content[0].text
-
-
-def _call_gemini(prompt: str) -> str:
-    from google import genai
-    client = genai.Client(api_key=settings.gemini_api_key)
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=f"{SYSTEM_PROMPT}\n\n{prompt}",
-    )
-    return response.text
-
-
-def _strip_code_block(text: str) -> str:
-    """AI 응답에서 ```html ... ``` 코드블록 마커를 제거한다."""
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
-    return text.strip()
+# ── 공개 API ──
 
 
 def generate_briefing(
@@ -82,10 +121,22 @@ def generate_briefing(
 ) -> str:
     """수집된 데이터를 AI에게 보내 브리핑 HTML을 생성한다."""
     prompt = _build_prompt(market, disclosures, news, stock_news)
+    provider = _get_provider()
+    raw = provider.call(SYSTEM_PROMPT, prompt)
+    return _strip_code_block(raw)
 
-    if settings.ai_provider == "gemini":
-        return _strip_code_block(_call_gemini(prompt))
-    return _strip_code_block(_call_claude(prompt))
+
+# ── 내부 헬퍼 ──
+
+
+def _strip_code_block(text: str) -> str:
+    """AI 응답에서 ```html ... ``` 코드블록 마커를 제거한다."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    return text.strip()
 
 
 def _build_prompt(
