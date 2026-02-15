@@ -1,10 +1,4 @@
-"""라우트 테스트 — FastAPI ASGI 테스트 클라이언트.
-
-스프링 대응:
-- httpx.AsyncClient(app=app) = MockMvc / WebTestClient
-- override_dependency = @MockBean (DI 교체)
-- status_code 검증 = .andExpect(status().isOk())
-"""
+"""라우트 테스트."""
 
 import pytest
 import pytest_asyncio
@@ -23,7 +17,7 @@ TestSession = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_com
 
 
 async def override_get_db():
-    """테스트용 DB 세션을 주입한다. 스프링의 @MockBean DataSource와 같다."""
+    """테스트용 DB 세션을 주입한다."""
     async with TestSession() as session:
         yield session
 

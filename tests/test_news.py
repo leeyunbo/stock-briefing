@@ -1,9 +1,4 @@
-"""뉴스 수집기 테스트.
-
-스프링 대응:
-- @MockBean WebClient → unittest.mock.patch("httpx.AsyncClient")
-- assertThat().isEqualTo() → assert == (pytest는 assert 하나로 다 한다)
-"""
+"""뉴스 수집기 테스트."""
 
 from unittest.mock import AsyncMock, patch
 
@@ -13,7 +8,7 @@ import pytest
 from app.collector.news import NewsArticle, _strip_html, fetch_news
 
 
-# ── 순수 함수 테스트 (Mockito 필요 없음) ──
+# ── 순수 함수 테스트 ──
 
 
 def test_strip_html_removes_tags():
@@ -47,8 +42,6 @@ async def test_fetch_news_success():
         request=httpx.Request("GET", "https://test.com"),
     )
 
-    # patch: httpx.AsyncClient.get을 가짜로 교체
-    # 스프링의 @MockBean + when(webClient.get()).thenReturn() 과 같다
     with patch("app.collector.news.httpx.AsyncClient") as MockClient:
         mock_instance = AsyncMock()
         mock_instance.get.return_value = fake_response

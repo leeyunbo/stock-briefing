@@ -1,9 +1,4 @@
-"""요약기 테스트 — Protocol/Strategy 패턴 검증.
-
-스프링 대응:
-- mock provider = @MockBean AiProvider
-- _strip_code_block 테스트 = 순수 유틸 단위 테스트
-"""
+"""요약기 테스트."""
 
 from unittest.mock import patch
 
@@ -48,7 +43,6 @@ async def test_generate_briefing_calls_provider():
         NewsArticle(title="증시 상승", description="코스피 올랐다", link="https://ex.com", pub_date="Mon"),
     ]
 
-    # _get_provider()를 mock해서 실제 AI API를 호출하지 않는다
     fake_provider_instance = type("FakeProvider", (), {"call": lambda self, s, u: "<h2>테스트 브리핑</h2>"})()
 
     with patch("app.summarizer._get_provider", return_value=fake_provider_instance):

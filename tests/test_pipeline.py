@@ -1,9 +1,4 @@
-"""파이프라인 테스트 — 각 단계를 Mock으로 격리.
-
-스프링 대응:
-- patch() = @MockBean (서비스 계층 교체)
-- CollectedData/BriefingResult = 테스트용 DTO 직접 생성
-"""
+"""파이프라인 테스트."""
 
 from unittest.mock import AsyncMock, patch, MagicMock
 
