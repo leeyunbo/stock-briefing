@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import EmailStr
-from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -30,17 +30,18 @@ async def subscribe(
     email: EmailStr = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
-    # 중복 체크
-    existing = await db.execute(select(Subscriber).where(Subscriber.email == email))
-    if existing.scalar_one_or_none():
+    subscriber = Subscriber(email=email)
+    db.add(subscriber)
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
         return templates.TemplateResponse("landing.html", {
             "request": request,
             "message": "이미 구독 중인 이메일입니다.",
             "message_type": "warning",
         })
 
-    subscriber = Subscriber(email=email)
-    db.add(subscriber)
     await db.commit()
 
     return templates.TemplateResponse("landing.html", {

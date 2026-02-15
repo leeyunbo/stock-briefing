@@ -1,5 +1,7 @@
 """라우트 테스트."""
 
+from datetime import date
+
 import pytest
 import pytest_asyncio
 import httpx
@@ -103,7 +105,7 @@ async def test_archive_with_data():
     """브리핑이 있으면 목록에 표시된다."""
     # DB에 직접 데이터 삽입
     async with TestSession() as session:
-        session.add(Briefing(date="2025-02-11", title="테스트 브리핑", content_html="<h2>내용</h2>"))
+        session.add(Briefing(date=date(2025, 2, 11), title="테스트 브리핑", content_html="<h2>내용</h2>"))
         await session.commit()
 
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:

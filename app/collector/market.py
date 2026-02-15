@@ -3,7 +3,9 @@
 import logging
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,13 @@ class IndexData(BaseModel):
     change_pct: str
     direction: str
 
+    @field_validator("close", "change", "change_pct")
+    @classmethod
+    def warn_empty(cls, v: str, info) -> str:
+        if v == "":
+            logger.warning("IndexData.%s 빈 문자열", info.field_name)
+        return v
+
 
 class StockData(BaseModel):
     """개별 종목 데이터."""
@@ -34,6 +43,13 @@ class StockData(BaseModel):
     direction: str
     volume: str = ""
 
+    @field_validator("close", "change_pct")
+    @classmethod
+    def warn_empty(cls, v: str, info) -> str:
+        if v == "":
+            logger.warning("StockData.%s 빈 문자열", info.field_name)
+        return v
+
 
 class InvestorData(BaseModel):
     """투자자별 매매동향."""
@@ -41,6 +57,13 @@ class InvestorData(BaseModel):
     personal: str
     foreign: str
     institutional: str
+
+    @field_validator("personal", "foreign", "institutional")
+    @classmethod
+    def warn_empty(cls, v: str, info) -> str:
+        if v == "":
+            logger.warning("InvestorData.%s 빈 문자열", info.field_name)
+        return v
 
 
 class MarketSummary(BaseModel):
@@ -61,12 +84,15 @@ async def fetch_market_summary() -> MarketSummary:
     """시장 요약 데이터를 가져온다."""
     market = MarketSummary()
 
-    async with httpx.AsyncClient(timeout=15, headers=HEADERS) as client:
+    async with httpx.AsyncClient(timeout=settings.api_timeout, headers=HEADERS) as client:
         # 코스피/코스닥 지수
         for code, field in [("KOSPI", "kospi"), ("KOSDAQ", "kosdaq")]:
             index_data = await _fetch_index(client, code)
             if index_data:
-                setattr(market, field, index_data.index)
+                if field == "kospi":
+                    market.kospi = index_data.index
+                else:
+                    market.kosdaq = index_data.index
                 if index_data.date:
                     market.date = index_data.date
 
@@ -77,7 +103,10 @@ async def fetch_market_summary() -> MarketSummary:
         for code, field in [("KOSPI", "kospi_investor"), ("KOSDAQ", "kosdaq_investor")]:
             investor = await _fetch_investor(client, code)
             if investor:
-                setattr(market, field, investor)
+                if field == "kospi_investor":
+                    market.kospi_investor = investor
+                else:
+                    market.kosdaq_investor = investor
 
     return market
 
@@ -153,7 +182,14 @@ async def _fetch_stock_with_afterhours(client: httpx.AsyncClient, item_code: str
         resp = await client.get(f"{NAVER_POLLING_API}/{item_code}")
         resp.raise_for_status()
         d = resp.json()["datas"][0]
-    except (httpx.HTTPStatusError, httpx.RequestError, KeyError, IndexError):
+    except httpx.HTTPStatusError as e:
+        logger.debug("시간외 API HTTP 에러 (%s): %d", item_code, e.response.status_code)
+        return None
+    except httpx.RequestError as e:
+        logger.debug("시간외 API 네트워크 에러 (%s): %s", item_code, e)
+        return None
+    except (KeyError, IndexError):
+        logger.debug("시간외 API 응답 파싱 실패 (%s)", item_code)
         return None
 
     over = d.get("overMarketPriceInfo") or {}

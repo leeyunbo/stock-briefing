@@ -1,5 +1,6 @@
 """Stock Briefing - AI 주식 아침 브리핑 서비스."""
 
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -8,7 +9,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.logging_config import setup_logging
+from app.logging_config import setup_logging, correlation_id
 from app.database import init_db
 from app.routes.subscribe import router as subscribe_router
 from app.routes.archive import router as archive_router
@@ -31,6 +32,17 @@ app.include_router(subscribe_router)
 app.include_router(archive_router)
 
 _templates = Jinja2Templates(directory="templates")
+
+
+@app.middleware("http")
+async def correlation_id_middleware(request: Request, call_next):
+    """요청마다 고유한 correlation ID를 부여한다."""
+    token = correlation_id.set(uuid.uuid4().hex[:8])
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        correlation_id.reset(token)
 
 
 @app.exception_handler(RequestValidationError)

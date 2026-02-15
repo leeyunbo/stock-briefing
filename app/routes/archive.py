@@ -6,19 +6,20 @@
 - func.count() = JPA의 countQuery (전체 건수 조회)
 """
 
+from datetime import date as date_type
+
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.models import Briefing
 
 router = APIRouter(prefix="/archive")
 templates = Jinja2Templates(directory="templates")
-
-PAGE_SIZE = 10
 
 
 @router.get("", response_class=HTMLResponse)
@@ -28,6 +29,8 @@ async def archive_list(
     page: int = Query(default=1, ge=1),
     db: AsyncSession = Depends(get_db),
 ):
+    page_size = settings.archive_page_size
+
     base_query = select(Briefing)
     if q:
         base_query = base_query.where(
@@ -36,13 +39,13 @@ async def archive_list(
 
     # 전체 건수 조회 (페이지 계산용)
     count_result = await db.execute(select(func.count()).select_from(base_query.subquery()))
-    total = count_result.scalar()
-    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    total = count_result.scalar() or 0
+    total_pages = max(1, (total + page_size - 1) // page_size)
 
     # offset/limit 페이지네이션
-    offset = (page - 1) * PAGE_SIZE
+    offset = (page - 1) * page_size
     rows = await db.execute(
-        base_query.order_by(Briefing.date.desc()).offset(offset).limit(PAGE_SIZE)
+        base_query.order_by(Briefing.date.desc()).offset(offset).limit(page_size)
     )
     briefings = rows.scalars().all()
 
@@ -57,7 +60,8 @@ async def archive_list(
 
 @router.get("/{briefing_date}", response_class=HTMLResponse)
 async def archive_detail(request: Request, briefing_date: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Briefing).where(Briefing.date == briefing_date))
+    parsed_date = date_type.fromisoformat(briefing_date)
+    result = await db.execute(select(Briefing).where(Briefing.date == parsed_date))
     briefing = result.scalar_one_or_none()
 
     if not briefing:

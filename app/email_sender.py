@@ -34,7 +34,11 @@ def _send_smtp(to_email: str, subject: str, html_body: str) -> None:
     msg = _build_message(to_email, subject, html_body)
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
         server.starttls()
-        server.login(settings.smtp_user, settings.smtp_password)
+        try:
+            server.login(settings.smtp_user, settings.smtp_password)
+        except smtplib.SMTPAuthenticationError:
+            logger.error("SMTP 인증 실패 (user=%s)", settings.smtp_user)
+            raise
         server.sendmail(settings.smtp_user, to_email, msg.as_string())
 
 
@@ -52,8 +56,8 @@ async def send_email(to_email: str, subject: str, html_body: str) -> bool:
     try:
         await asyncio.to_thread(_send_smtp, to_email, subject, html_body)
         return True
-    except Exception as e:
-        logger.error("이메일 발송 실패 (%s): %s", to_email, e)
+    except Exception:
+        logger.error("이메일 발송 실패 (%s)", to_email, exc_info=True)
         return False
 
 

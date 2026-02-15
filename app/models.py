@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import String, Text, DateTime, Boolean
+from sqlalchemy import Date, String, Text, DateTime, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -19,7 +19,7 @@ class Briefing(Base):
     __tablename__ = "briefings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    date: Mapped[str] = mapped_column(String(10), unique=True, index=True)  # YYYY-MM-DD
+    date: Mapped[date] = mapped_column(Date, unique=True, index=True)
     title: Mapped[str] = mapped_column(String(200))
     content_html: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

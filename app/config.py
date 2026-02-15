@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     smtp_user: str
     smtp_password: str
 
+    # HTTP
+    api_timeout: int = 15
+
+    # Pagination
+    archive_page_size: int = 10
+
     # Database
     database_url: str = "sqlite+aiosqlite:///briefing.db"
 

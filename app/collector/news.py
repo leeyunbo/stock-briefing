@@ -41,7 +41,7 @@ async def fetch_news(query: str = "주식 증시", count: int = 5) -> list[NewsA
     }
 
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=settings.api_timeout) as client:
             resp = await client.get(NAVER_SEARCH_URL, headers=headers, params=params)
             resp.raise_for_status()
             data = resp.json()
@@ -67,13 +67,13 @@ async def fetch_stock_news() -> list[NewsArticle]:
     """주식/경제 관련 뉴스를 여러 키워드로 수집한다."""
     queries = ["코스피 증시", "주식시장 전망", "경제 금리"]
     all_news: list[NewsArticle] = []
-    seen_titles: set[str] = set()
+    seen_links: set[str] = set()
 
     for query in queries:
         news = await fetch_news(query=query, count=5)
         for article in news:
-            if article.title not in seen_titles:
-                seen_titles.add(article.title)
+            if article.link not in seen_links:
+                seen_links.add(article.link)
                 all_news.append(article)
 
     return all_news[:10]

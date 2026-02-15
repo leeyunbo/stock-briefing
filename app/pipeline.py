@@ -53,11 +53,21 @@ class BriefingResult:
 
 async def collect_data() -> CollectedData:
     """1단계: 시장/공시/뉴스 데이터를 병렬 수집한다."""
-    market, disclosures, news = await asyncio.gather(
+    results = await asyncio.gather(
         fetch_market_summary(),
         fetch_disclosures(),
         fetch_stock_news(),
+        return_exceptions=True,
     )
+
+    market = results[0] if not isinstance(results[0], Exception) else MarketSummary()
+    disclosures = results[1] if not isinstance(results[1], Exception) else []
+    news = results[2] if not isinstance(results[2], Exception) else []
+
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            logger.error("수집 단계 %d 실패: %s", i, result)
+
     logger.info("수집 완료: 공시 %d건, 뉴스 %d건", len(disclosures), len(news))
 
     # 등락률 큰 종목 뉴스 추가 수집
@@ -86,7 +96,7 @@ def summarize(data: CollectedData) -> BriefingResult:
 
 async def save_briefing(result: BriefingResult) -> None:
     """3단계: 브리핑을 DB에 저장한다 (같은 날 재실행 시 업데이트)."""
-    today = date.today().isoformat()
+    today = date.today()
     async with async_session() as db:
         existing = await db.execute(select(Briefing).where(Briefing.date == today))
         briefing = existing.scalar_one_or_none()
@@ -101,7 +111,7 @@ async def save_briefing(result: BriefingResult) -> None:
 async def send_emails(result: BriefingResult) -> None:
     """4단계: 구독자에게 이메일을 발송한다."""
     async with async_session() as db:
-        rows = await db.execute(select(Subscriber.email).where(Subscriber.is_active == True))
+        rows = await db.execute(select(Subscriber.email).where(Subscriber.is_active.is_(True)))
         emails = [row[0] for row in rows.all()]
 
     if not emails:

@@ -63,7 +63,7 @@ async def fetch_disclosures(target_date: date | None = None) -> list[Disclosure]
         "page_count": 30,
     }
 
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=settings.api_timeout) as client:
         # 4개 카테고리 동시 호출 — 스프링 WebFlux의 Mono.zip()과 동일
         results = await asyncio.gather(
             *[_fetch_by_type(client, base_params, ty) for ty in DISCLOSURE_TYPES],
