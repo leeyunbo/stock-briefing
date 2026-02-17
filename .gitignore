@@ -11,3 +11,4 @@ server.log
 .claude/
 .review/
 test_send.py
+docs/private/

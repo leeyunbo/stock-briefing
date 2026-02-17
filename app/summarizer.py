@@ -107,7 +107,14 @@ SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 뉴스레터 에디
 <li><strong>현대모비스 자기주식 처분 결정</strong><br>자기주식 약 200만주를 처분하기로 했어요. 주가 방어 신호로 읽힐 수 있어요.</li>
 잘못된 예시:
 <li><strong>현대모비스 자기주식 처분 결정</strong>: 자기주식 약 200만주를 처분하기로 했어요.</li>
+
 """
+
+
+# ── 휴장일 하드코딩 HTML ──
+
+_CLOSED_GREETING = "<p>어제는 증시가 쉬었어요 🏖️</p>"
+_CLOSED_NO_NEWS = "<p>오늘은 특별한 뉴스가 없어요. 편안한 하루 보내세요!</p>"
 
 
 # ── 공개 API ──
@@ -118,8 +125,12 @@ def generate_briefing(
     disclosures: list[Disclosure],
     news: list[NewsArticle],
     stock_news: dict[str, list[NewsArticle]] | None = None,
+    *,
+    is_market_closed: bool = False,
 ) -> str:
     """수집된 데이터를 AI에게 보내 브리핑 HTML을 생성한다."""
+    if is_market_closed:
+        return _build_closed_market_briefing(news)
     prompt = _build_prompt(market, disclosures, news, stock_news)
     provider = _get_provider()
     raw = provider.call(SYSTEM_PROMPT, prompt)
@@ -127,6 +138,22 @@ def generate_briefing(
 
 
 # ── 내부 헬퍼 ──
+
+
+def _build_closed_market_briefing(news: list[NewsArticle]) -> str:
+    """휴장일 브리핑: 인사말은 하드코딩, 뉴스만 LLM 요약."""
+    if not news:
+        return f"{_CLOSED_GREETING}\n{_CLOSED_NO_NEWS}"
+
+    parts = ["아래 뉴스를 📰 오늘의 뉴스 섹션(<h2>)으로 요약해주세요. 3~5건만 선별하세요.\n"]
+    for n in news:
+        desc = n.description[:150]
+        parts.append(f"- {n.title}: {desc}")
+
+    provider = _get_provider()
+    raw = provider.call(SYSTEM_PROMPT, "\n".join(parts))
+    news_html = _strip_code_block(raw)
+    return f"{_CLOSED_GREETING}\n{news_html}"
 
 
 def _strip_code_block(text: str) -> str:
@@ -152,11 +179,11 @@ def _build_prompt(
     parts.append("## 시장 데이터")
     for idx in [market.kospi, market.kosdaq]:
         if idx:
-            parts.append(f"- {idx.name}: 종가 {idx.close}, 전일대비 {idx.change} ({idx.direction}), 등락률 {idx.change_pct}%")
+            parts.append(f"- {idx.name} {idx.close} {idx.direction}{idx.change} ({idx.change_pct}%)")
 
     # 투자자별 매매동향
     if market.kospi_investor or market.kosdaq_investor:
-        parts.append("\n## 투자자별 매매동향 (단위: 억원)")
+        parts.append("\n## 투자자 동향(억원)")
         if market.kospi_investor:
             inv = market.kospi_investor
             parts.append(f"- 코스피: 개인 {inv.personal}, 외국인 {inv.foreign}, 기관 {inv.institutional}")
@@ -171,25 +198,27 @@ def _build_prompt(
 
     # 종목별 뉴스 (대장주 이유 분석용)
     if stock_news:
-        parts.append("\n## 종목별 관련 뉴스 (급등/급락 이유 분석에 활용)")
+        parts.append("\n## 종목 뉴스")
         for stock_name, articles in stock_news.items():
             parts.append(f"\n### {stock_name}")
             for a in articles:
-                parts.append(f"- {a.title}: {a.description}")
+                desc = a.description[:150]
+                parts.append(f"- {a.title}: {desc}")
 
     # 공시 데이터
     parts.append("\n## 공시 데이터")
     if disclosures:
         for d in disclosures:
-            parts.append(f"- [{d.corp_name}] {d.report_nm} (제출인: {d.flr_nm})")
+            parts.append(f"- [{d.corp_name}] {d.report_nm} ({d.flr_nm})")
     else:
         parts.append("- 주요 공시 없음")
 
     # 뉴스 데이터
-    parts.append("\n## 뉴스 데이터")
+    parts.append("\n## 뉴스")
     if news:
         for n in news:
-            parts.append(f"- {n.title}: {n.description}")
+            desc = n.description[:150]
+            parts.append(f"- {n.title}: {desc}")
     else:
         parts.append("- 주요 뉴스 없음")
 

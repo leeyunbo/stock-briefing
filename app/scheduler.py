@@ -17,9 +17,9 @@ def start_scheduler():
         trigger="cron",
         hour=7,
         minute=0,
-        day_of_week="mon-sat",
+        day_of_week="tue-sat",
         id="daily_briefing",
     )
     scheduler.start()
-    logger.info("스케줄러 시작: 월~토 매일 아침 7시 브리핑 발송")
+    logger.info("스케줄러 시작: 화~토 매일 아침 7시 브리핑 발송")
     return scheduler
