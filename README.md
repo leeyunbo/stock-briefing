@@ -18,10 +18,8 @@
 | 분류 | 기술 |
 |------|------|
 | 언어 | Python 3.13 |
-| 웹 프레임워크 | FastAPI + Uvicorn |
-| ORM | SQLAlchemy (비동기, aiosqlite) |
 | HTTP 클라이언트 | httpx (비동기) |
-| AI | Anthropic Claude API, Google Gemini API |
+| AI | Anthropic Claude API(메인), Google Gemini API(테스트 용) |
 | 스케줄링 | APScheduler |
 | 이메일 | aiosmtplib + Gmail SMTP |
 | 템플릿 | Jinja2 |
