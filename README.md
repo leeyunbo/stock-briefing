@@ -1,6 +1,7 @@
 # Stock Briefing
 
-매일 아침 7시, AI가 전일 시장 데이터/공시/뉴스를 수집하고 요약해서 이메일로 발송하는 자동화 뉴스레터 서비스.
+매일 아침 7시, AI가 전일 시장 데이터/공시/뉴스를 수집하고 요약해서 이메일로 발송하는 뉴스레터 서비스에요.
+- 현재는 국장 브리핑만 제공해요.
 
 ## 주요 기능
 
@@ -47,52 +48,6 @@ stock-briefing/
 │       └── news.py          # 네이버 뉴스 RSS
 ├── templates/               # Jinja2 템플릿 (이메일, 웹 페이지)
 └── tests/                   # pytest 테스트 (36개)
-```
-
-## 설정
-
-### 1. 환경 구성
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. 환경변수
-
-`.env` 파일을 생성하고 아래 항목을 설정:
-
-```env
-# API Keys (필수)
-DART_API_KEY=
-ANTHROPIC_API_KEY=
-GEMINI_API_KEY=
-NAVER_CLIENT_ID=
-NAVER_CLIENT_SECRET=
-
-# AI Provider ("claude" 또는 "gemini")
-AI_PROVIDER=claude
-
-# SMTP (Gmail 앱 비밀번호)
-SMTP_USER=
-SMTP_PASSWORD=
-```
-
-### 3. 실행
-
-```bash
-./run.sh start     # 서버 시작 (백그라운드)
-./run.sh stop      # 서버 종료
-./run.sh restart   # 재시작
-./run.sh status    # 실행 상태 확인
-./run.sh log       # 로그 확인
-```
-
-## 테스트
-
-```bash
-pytest tests/ -v
 ```
 
 ## 파이프라인 흐름
