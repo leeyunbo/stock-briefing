@@ -24,6 +24,11 @@ async def landing_page(request: Request):
     return templates.TemplateResponse("landing.html", {"request": request})
 
 
+@router.get("/privacy", response_class=HTMLResponse)
+async def privacy_page(request: Request):
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+
 @router.post("/subscribe")
 async def subscribe(
     request: Request,

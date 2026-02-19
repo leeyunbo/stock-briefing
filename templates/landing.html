@@ -101,11 +101,12 @@
         /* Subscribe Form */
         .subscribe-form {
             display: flex;
+            flex-wrap: wrap;
             gap: 8px;
             max-width: 420px;
             margin: 0 auto;
         }
-        .subscribe-form input {
+        .subscribe-form input[type="email"] {
             flex: 1;
             padding: 16px 20px;
             border: none;
@@ -118,8 +119,8 @@
             transition: background 0.2s;
             letter-spacing: -0.3px;
         }
-        .subscribe-form input::placeholder { color: rgba(255,255,255,0.25); }
-        .subscribe-form input:focus { background: rgba(255,255,255,0.12); }
+        .subscribe-form input[type="email"]::placeholder { color: rgba(255,255,255,0.25); }
+        .subscribe-form input[type="email"]:focus { background: rgba(255,255,255,0.12); }
         .subscribe-form button {
             padding: 16px 32px;
             background: #3182f6;
@@ -163,6 +164,36 @@
             transition: color 0.15s;
         }
         .footer-link a:hover { color: #3182f6; }
+
+        /* Consent */
+        .consent {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            justify-content: center;
+            margin-top: 4px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.4);
+            cursor: pointer;
+            letter-spacing: -0.2px;
+        }
+        .consent input[type="checkbox"] {
+            width: 14px; height: 14px;
+            margin: 0;
+            accent-color: #3182f6;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .consent span {
+            flex-shrink: 0;
+        }
+        .consent a {
+            color: rgba(255,255,255,0.6);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .consent a:hover { color: #3182f6; }
 
         /* Trust */
         .trust {
@@ -232,6 +263,10 @@
         <form class="subscribe-form" action="/subscribe" method="post">
             <input type="email" name="email" placeholder="이메일 주소" required>
             <button type="submit">무료 구독</button>
+            <label class="consent">
+                <input type="checkbox" name="privacy_agreed" required>
+                <span><a href="/privacy" target="_blank">개인정보 처리방침</a>에 동의합니다</span>
+            </label>
         </form>
 
         {% if message %}

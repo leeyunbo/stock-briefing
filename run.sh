@@ -12,9 +12,13 @@ case "$1" in
     echo "서버 시작 (PID: $!)"
     ;;
   stop)
-    pkill -f "stock-briefing/.venv/bin/python main.py" 2>/dev/null
-    pkill -f "stock-briefing/.venv/bin/uvicorn" 2>/dev/null
-    echo "서버 종료"
+    pids=$(lsof -ti :8000 2>/dev/null)
+    if [ -n "$pids" ]; then
+      kill $pids 2>/dev/null
+      echo "서버 종료 (PID: $pids)"
+    else
+      echo "실행 중인 서버 없음"
+    fi
     ;;
   restart)
     $0 stop
