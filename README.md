@@ -68,8 +68,3 @@ stock-briefing/
 발송 (send_emails)
 └── 구독자에게 이메일 발송 (재시도 포함)
 ``` 
-
-## 예시 
-
-<img width="437" height="1126" alt="image" src="https://github.com/user-attachments/assets/482637b2-464a-43ee-8e6a-9b26280dbab3" />
-
