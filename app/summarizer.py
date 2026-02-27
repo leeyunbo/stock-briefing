@@ -65,13 +65,16 @@ class GeminiProvider:
 class ClaudeCliProvider:
     """Claude Code CLI 구현체. API 키 불필요, 구독 크레딧 활용."""
 
+    def __init__(self, timeout: int = 120):
+        self.timeout = timeout
+
     def call(self, system_prompt: str, user_prompt: str) -> str:
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
         result = subprocess.run(
             ["claude", "-p", f"{system_prompt}\n\n{user_prompt}", "--output-format", "text"],
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=self.timeout,
             env=env,
         )
         if result.returncode != 0:

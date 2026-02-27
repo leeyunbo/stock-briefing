@@ -24,7 +24,23 @@ def render_email(title: str, content_html: str) -> str:
 
 def _style_content_html(html: str) -> str:
     """AI가 생성한 HTML에 다크 테마 인라인 스타일을 자동 적용한다."""
-    # <h2> → 섹션 헤더 (왼쪽 파란 바 + 흰 볼드)
+    # 데이터 테이블 스타일링 (h2 변환보다 먼저 — AI가 생성한 원본 table만 매칭)
+    html = re.sub(
+        r'<table(?:\s[^>]*)?>',
+        '<table style="width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px;">',
+        html,
+    )
+    html = re.sub(
+        r'<th(?:\s[^>]*)?>',
+        '<th style="color: #FFFFFF; font-weight: 700; text-align: left; padding: 10px 12px; border-bottom: 2px solid rgba(255,255,255,0.15);">',
+        html,
+    )
+    html = re.sub(
+        r'<td(?:\s[^>]*)?>',
+        '<td style="color: rgba(255,255,255,0.75); padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.08);">',
+        html,
+    )
+    # <h2> → 섹션 헤더 (왼쪽 파란 바 + 흰 볼드) — 테이블 스타일링 이후에 삽입하므로 충돌 없음
     html = re.sub(
         r'<h2>(.*?)</h2>',
         r'<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top: 28px; margin-bottom: 14px;">'
