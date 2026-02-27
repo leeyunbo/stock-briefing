@@ -1,6 +1,6 @@
 """이메일 템플릿 테스트."""
 
-from app.email_template import _style_content_html, render_email
+from app.publishing.email_template import _style_content_html, render_email
 
 
 def test_style_content_html_adds_h2_style():

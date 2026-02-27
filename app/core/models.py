@@ -3,7 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import Date, String, Text, DateTime, Boolean, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.database import Base
+from app.core.database import Base
 
 
 class Subscriber(Base):

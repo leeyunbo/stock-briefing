@@ -27,8 +27,10 @@ from app.collector.stock_research import (
     scan_market,
     screen_candidates,
 )
-from app.pipeline import BriefingResult, save_briefing, send_emails
-from app.summarizer import ClaudeCliProvider, strip_code_block
+from app.pipeline.base import BriefingResult, save_briefing, send_emails
+from app.publishing.og_image import CATEGORY_DISPLAY, generate_og_image
+from app.publishing.wordpress import publish_to_wordpress
+from app.summarizer import SEO_INSTRUCTION, ClaudeCliProvider, extract_seo_metadata, strip_code_block
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +39,24 @@ logger = logging.getLogger(__name__)
 
 
 async def _deliver(result: BriefingResult, briefing_type: str, email_to: list[str] | None) -> None:
-    """결과를 DB에 저장하고 이메일을 발송한다."""
+    """결과를 DB에 저장하고, WordPress에 발행하고, 이메일을 발송한다."""
     await save_briefing(result, briefing_type=briefing_type)
+
+    # OG 이미지 생성
+    category = CATEGORY_DISPLAY.get(briefing_type, "뉴스 딥다이브")
+    og_image = generate_og_image(result.title, category)
+
+    # WordPress 자동 발행
+    await publish_to_wordpress(
+        result.title, result.html, briefing_type,
+        slug=result.slug, excerpt=result.excerpt, tags=result.tags,
+        og_image=og_image,
+    )
 
     if email_to is not None:
         if email_to:
-            from app.email_sender import send_briefing_to_subscribers
-            from app.email_template import render_email
+            from app.publishing.email_sender import send_briefing_to_subscribers
+            from app.publishing.email_template import render_email
             email_html = render_email(result.title, result.html)
             send_result = await send_briefing_to_subscribers(email_to, result.title, email_html)
             logger.info("이메일 발송: 성공 %d, 실패 %d", send_result["success"], send_result["fail"])
@@ -270,7 +283,7 @@ NEWS_DIVE_REPORT_PROMPT = """당신은 경제 유튜버 스타일의 시장 코�
 
 투자 권유/추천/매수 전략/목표가 제시 절대 금지!
 "이 종목이 좋다"가 아니라 "이 종목이 이 이슈와 이렇게 연결돼 있어요"라는 교육적 톤을 유지하세요.
-"""
+""" + SEO_INSTRUCTION
 
 
 def _build_news_dive_prompt(
@@ -367,11 +380,12 @@ def generate_news_dive_report(
     prompt = _build_news_dive_prompt(analysis, screened, scan, macro)
     provider = ClaudeCliProvider(timeout=300)
     raw = provider.call(NEWS_DIVE_REPORT_PROMPT, prompt)
-    html = strip_code_block(raw)
+    raw = strip_code_block(raw)
+    html, seo_title, slug, excerpt, tags = extract_seo_metadata(raw)
 
-    title = f"{date.today().strftime('%Y년 %m월 %d일')} 뉴스 딥다이브"
+    title = seo_title or f"{date.today().strftime('%Y년 %m월 %d일')} 뉴스 딥다이브"
     logger.info("뉴스 딥다이브 리포트 생성 완료: %s", title)
-    return BriefingResult(title=title, html=html)
+    return BriefingResult(title=title, html=html, slug=slug, excerpt=excerpt, tags=tags)
 
 
 async def run_news_dive_pipeline(email_to: list[str] | None = None) -> str:
@@ -480,7 +494,7 @@ RESEARCH_SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 심화 분
 
 데이터가 없는 항목은 "데이터 미확보"로 표시하되, 가능한 범위에서 분석을 계속하세요.
 숫자를 표시할 때 큰 수는 읽기 쉽게 (예: $1,234.5B, $56.7M) 변환하세요.
-"""
+""" + SEO_INSTRUCTION
 
 
 def _build_research_prompt(data: StockResearchData) -> str:
@@ -585,12 +599,13 @@ def summarize_research(data: StockResearchData) -> BriefingResult:
     prompt = _build_research_prompt(data)
     provider = ClaudeCliProvider(timeout=300)
     raw = provider.call(RESEARCH_SYSTEM_PROMPT, prompt)
-    html = strip_code_block(raw)
+    raw = strip_code_block(raw)
+    html, seo_title, slug, excerpt, tags = extract_seo_metadata(raw)
 
     name = data.profile.name or data.ticker
-    title = f"{name} ({data.ticker}) 심화 분석 리포트"
+    title = seo_title or f"{name} ({data.ticker}) 심화 분석 리포트"
     logger.info("딥리서치 보고서 완료: %s", title)
-    return BriefingResult(title=title, html=html)
+    return BriefingResult(title=title, html=html, slug=slug, excerpt=excerpt, tags=tags)
 
 
 async def run_deep_research_pipeline(ticker: str, email_to: list[str] | None = None) -> str:

@@ -39,6 +39,17 @@ class Settings(BaseSettings):
     finnhub_api_key: str
     nasdaq_watchlist: str = "AAPL,NVDA,MSFT,GOOGL,AMZN,META,TSLA,PLTR,CRM,SNOW,NOW,SMCI"
 
+    # WordPress
+    wp_url: str = ""
+    wp_user: str = ""
+    wp_app_password: str = ""
+
+    # Google Indexing API (서비스 계정 JSON 경로)
+    google_service_account_json: str = ""
+
+    # 청약Home API (공공데이터포털)
+    applyhome_api_key: str = ""
+
     # HTTP
     api_timeout: int = 15
 

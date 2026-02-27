@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import httpx
 from pydantic import BaseModel
 
-from app.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

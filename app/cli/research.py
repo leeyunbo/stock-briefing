@@ -1,11 +1,11 @@
 """주식 리서치 CLI 엔트리포인트.
 
 사용법:
-    python -m app.research                              # 테마 기반 종합 리포트 → 전체 구독자
-    python -m app.research --email a@b.com              # 테마 기반 → 특정 주소로
-    python -m app.research --ticker NVDA                # 개별 종목 딥리서치 → 전체 구독자
-    python -m app.research --ticker NVDA --email a@b.com  # 개별 종목 → 특정 주소로
-    python -m app.research --no-email                   # 발송 없이 생성만
+    python -m app.cli.research                              # 테마 기반 종합 리포트 → 전체 구독자
+    python -m app.cli.research --email a@b.com              # 테마 기반 → 특정 주소로
+    python -m app.cli.research --ticker NVDA                # 개별 종목 딥리서치 → 전체 구독자
+    python -m app.cli.research --ticker NVDA --email a@b.com  # 개별 종목 → 특정 주소로
+    python -m app.cli.research --no-email                   # 발송 없이 생성만
 """
 
 import argparse
@@ -44,13 +44,13 @@ def main() -> None:
     if ticker:
         # Mode B: 개별 종목 딥리서치
         logger.info("개별 종목 딥리서치 시작: %s", ticker)
-        from app.research_pipeline import run_deep_research_pipeline
+        from app.pipeline.research import run_deep_research_pipeline
         html = asyncio.run(run_deep_research_pipeline(ticker=ticker, email_to=email_to))
         out_path = Path(f"/tmp/research_{ticker.lower()}.html")
     else:
         # Mode A: 뉴스 딥다이브
         logger.info("뉴스 딥다이브 리포트 시작")
-        from app.research_pipeline import run_news_dive_pipeline
+        from app.pipeline.research import run_news_dive_pipeline
         html = asyncio.run(run_news_dive_pipeline(email_to=email_to))
         out_path = Path("/tmp/news_dive.html")
 

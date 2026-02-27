@@ -14,9 +14,9 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
-from app.database import get_db
-from app.models import Briefing
+from app.core.config import settings
+from app.core.database import get_db
+from app.core.models import Briefing
 
 router = APIRouter(prefix="/archive")
 templates = Jinja2Templates(directory="templates")

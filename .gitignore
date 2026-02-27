@@ -12,3 +12,4 @@ server.log
 .review/
 test_send.py
 docs/private/
+service-account.json

@@ -7,8 +7,8 @@ import pytest_asyncio
 import httpx
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
-from app.database import Base, get_db
-from app.models import Subscriber, Briefing
+from app.core.database import Base, get_db
+from app.core.models import Subscriber, Briefing
 from main import app
 
 # ── 테스트용 DB 설정 ──

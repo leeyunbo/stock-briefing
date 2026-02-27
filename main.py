@@ -9,8 +9,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.logging_config import setup_logging, correlation_id
-from app.database import init_db
+from app.core.logging_config import setup_logging, correlation_id
+from app.core.database import init_db
 from app.routes.subscribe import router as subscribe_router
 from app.routes.archive import router as archive_router
 from app.scheduler import start_scheduler

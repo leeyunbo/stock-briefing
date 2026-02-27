@@ -4,13 +4,13 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from app.email_sender import send_email
+from app.publishing.email_sender import send_email
 
 
 @pytest.mark.asyncio
 async def test_send_email_success():
     """정상 발송 시 True를 반환한다."""
-    with patch("app.email_sender._send_smtp") as mock_smtp:
+    with patch("app.publishing.email_sender._send_smtp") as mock_smtp:
         result = await send_email("test@example.com", "제목", "<h2>내용</h2>")
 
     assert result is True
@@ -20,7 +20,7 @@ async def test_send_email_success():
 @pytest.mark.asyncio
 async def test_send_email_failure():
     """SMTP 에러 시 False를 반환한다."""
-    with patch("app.email_sender._send_smtp", side_effect=Exception("SMTP error")):
+    with patch("app.publishing.email_sender._send_smtp", side_effect=Exception("SMTP error")):
         result = await send_email("test@example.com", "제목", "<h2>내용</h2>")
 
     assert result is False

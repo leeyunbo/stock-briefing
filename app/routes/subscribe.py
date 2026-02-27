@@ -12,8 +12,8 @@ from pydantic import EmailStr
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.models import Subscriber
+from app.core.database import get_db
+from app.core.models import Subscriber
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")

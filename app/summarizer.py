@@ -6,14 +6,19 @@
 - get_provider() = @Qualifier 또는 @ConditionalOnProperty 팩토리
 """
 
+import json
+import logging
 import os
+import re
 import subprocess
 from typing import Protocol
 
 from app.collector.dart import Disclosure
 from app.collector.market import MarketSummary
 from app.collector.news import NewsArticle
-from app.config import settings
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 # ── Protocol 정의 (스프링의 interface AiProvider) ──
@@ -135,6 +140,55 @@ SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 뉴스레터 에디
 """
 
 
+# ── SEO 메타데이터 지시문 (모든 프롬프트 공통) ──
+
+
+SEO_INSTRUCTION = """
+
+마지막으로, HTML 본문 아래에 SEO 메타데이터를 한 줄 JSON으로 출력하세요:
+<!-- SEO -->
+{"title": "오늘의 핵심 이슈 한 줄 제목!", "slug": "영문-날짜-키워드", "excerpt": "1~2문장 요약", "tags": ["태그1", "태그2"]}
+title: 그 날 시장의 메인 이슈를 담은 매력적인 제목. 예) "엔비디아 실적 서프라이즈! 국내주식 마감 브리핑"
+slug: 영문+숫자+하이픈만, 날짜 포함, 키워드 2~3개
+excerpt: 100자 이내
+tags: 본문 핵심 키워드 3~5개 (한국어)
+"""
+
+SYSTEM_PROMPT += SEO_INSTRUCTION
+
+
+def extract_seo_metadata(raw: str) -> tuple[str, str, str, str, list[str]]:
+    """HTML 응답에서 SEO 메타데이터를 분리한다.
+
+    Returns:
+        (html, title, slug, excerpt, tags) — 파싱 실패 시 빈값 반환.
+    """
+    marker = "<!-- SEO -->"
+    idx = raw.find(marker)
+    if idx == -1:
+        return raw, "", "", "", []
+
+    html = raw[:idx].strip()
+    seo_part = raw[idx + len(marker):].strip()
+
+    try:
+        # JSON 객체 추출
+        json_match = re.search(r'\{[^}]+\}', seo_part)
+        if not json_match:
+            return html, "", "", "", []
+        data = json.loads(json_match.group())
+        title = data.get("title", "")
+        slug = data.get("slug", "")
+        excerpt = data.get("excerpt", "")
+        tags = data.get("tags", [])
+        if isinstance(tags, str):
+            tags = [tags]
+        return html, title, slug, excerpt, tags
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.warning("SEO 메타데이터 파싱 실패: %s", e)
+        return html, "", "", "", []
+
+
 # ── 휴장일 하드코딩 HTML ──
 
 _CLOSED_GREETING = "<p>어제는 증시가 쉬었어요 🏖️</p>"
@@ -151,14 +205,19 @@ def generate_briefing(
     stock_news: dict[str, list[NewsArticle]] | None = None,
     *,
     is_market_closed: bool = False,
-) -> str:
-    """수집된 데이터를 AI에게 보내 브리핑 HTML을 생성한다."""
+) -> tuple[str, str, str, str, list[str]]:
+    """수집된 데이터를 AI에게 보내 브리핑 HTML을 생성한다.
+
+    Returns:
+        (html, title, slug, excerpt, tags)
+    """
     if is_market_closed:
-        return _build_closed_market_briefing(news)
+        return _build_closed_market_briefing(news), "", "", "", []
     prompt = _build_prompt(market, disclosures, news, stock_news)
     provider = get_provider()
     raw = provider.call(SYSTEM_PROMPT, prompt)
-    return strip_code_block(raw)
+    raw = strip_code_block(raw)
+    return extract_seo_metadata(raw)
 
 
 # ── 내부 헬퍼 ──

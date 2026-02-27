@@ -11,9 +11,10 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from app.collector.dart import Disclosure
 from app.collector.market import MarketSummary, IndexData
 from app.collector.news import NewsArticle
-from app.database import Base
-from app.models import Briefing
-from app.pipeline import CollectedData, BriefingResult, collect_data, summarize, save_briefing, _is_market_closed_yesterday, _filter_disclosures
+from app.core.database import Base
+from app.core.models import Briefing
+from app.pipeline.base import BriefingResult
+from app.pipeline.kospi import CollectedData, collect_data, summarize, save_briefing, _is_market_closed_yesterday, _filter_disclosures
 
 
 # ── 테스트용 DB 설정 ──
@@ -34,10 +35,10 @@ async def test_collect_data():
     )
 
     with (
-        patch("app.pipeline.fetch_market_summary", new_callable=AsyncMock, return_value=fake_market),
-        patch("app.pipeline.fetch_disclosures", new_callable=AsyncMock, return_value=[]),
-        patch("app.pipeline.fetch_stock_news", new_callable=AsyncMock, return_value=[]),
-        patch("app.pipeline.fetch_news_for_stocks", new_callable=AsyncMock, return_value={}),
+        patch("app.pipeline.kospi.fetch_market_summary", new_callable=AsyncMock, return_value=fake_market),
+        patch("app.pipeline.kospi.fetch_disclosures", new_callable=AsyncMock, return_value=[]),
+        patch("app.pipeline.kospi.fetch_stock_news", new_callable=AsyncMock, return_value=[]),
+        patch("app.pipeline.kospi.fetch_news_for_stocks", new_callable=AsyncMock, return_value={}),
     ):
         data = await collect_data()
 
@@ -58,7 +59,7 @@ def test_summarize():
         news=[],
     )
 
-    with patch("app.pipeline.generate_briefing", return_value="<h2>요약</h2>"):
+    with patch("app.pipeline.kospi.generate_briefing", return_value=("<h2>요약</h2>", "", "", "", [])):
         result = summarize(data)
 
     assert isinstance(result, BriefingResult)
@@ -74,7 +75,7 @@ async def test_save_briefing_creates_new():
 
     result = BriefingResult(title="테스트 브리핑", html="<h2>내용</h2>")
 
-    with patch("app.pipeline.async_session", TestSession):
+    with patch("app.pipeline.base.async_session", TestSession):
         await save_briefing(result)
 
     async with TestSession() as session:
@@ -98,10 +99,10 @@ async def test_collect_data_partial_failure():
     )
 
     with (
-        patch("app.pipeline.fetch_market_summary", new_callable=AsyncMock, return_value=fake_market),
-        patch("app.pipeline.fetch_disclosures", new_callable=AsyncMock, side_effect=Exception("DART 에러")),
-        patch("app.pipeline.fetch_stock_news", new_callable=AsyncMock, return_value=[]),
-        patch("app.pipeline.fetch_news_for_stocks", new_callable=AsyncMock, return_value={}),
+        patch("app.pipeline.kospi.fetch_market_summary", new_callable=AsyncMock, return_value=fake_market),
+        patch("app.pipeline.kospi.fetch_disclosures", new_callable=AsyncMock, side_effect=Exception("DART 에러")),
+        patch("app.pipeline.kospi.fetch_stock_news", new_callable=AsyncMock, return_value=[]),
+        patch("app.pipeline.kospi.fetch_news_for_stocks", new_callable=AsyncMock, return_value={}),
     ):
         data = await collect_data()
 
@@ -143,10 +144,10 @@ async def test_collect_data_market_closed():
     fake_news = [NewsArticle(title="테스트 뉴스", description="설명", link="http://example.com", pub_date="2025-01-01")]
 
     with (
-        patch("app.pipeline.fetch_market_summary", new_callable=AsyncMock, return_value=fake_market),
-        patch("app.pipeline.fetch_disclosures", new_callable=AsyncMock) as mock_disc,
-        patch("app.pipeline.fetch_stock_news", new_callable=AsyncMock, return_value=fake_news),
-        patch("app.pipeline.fetch_news_for_stocks", new_callable=AsyncMock) as mock_stock_news,
+        patch("app.pipeline.kospi.fetch_market_summary", new_callable=AsyncMock, return_value=fake_market),
+        patch("app.pipeline.kospi.fetch_disclosures", new_callable=AsyncMock) as mock_disc,
+        patch("app.pipeline.kospi.fetch_stock_news", new_callable=AsyncMock, return_value=fake_news),
+        patch("app.pipeline.kospi.fetch_news_for_stocks", new_callable=AsyncMock) as mock_stock_news,
     ):
         data = await collect_data()
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-_TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates"
+_TEMPLATE_DIR = Path(__file__).resolve().parent.parent.parent / "templates"
 _env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=False)
 
 

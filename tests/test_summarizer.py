@@ -7,21 +7,21 @@ import pytest
 from app.collector.dart import Disclosure
 from app.collector.market import MarketSummary, IndexData, StockData
 from app.collector.news import NewsArticle
-from app.summarizer import _strip_code_block, generate_briefing
+from app.summarizer import strip_code_block, generate_briefing
 
 
 # ── 순수 함수 테스트 ──
 
 
-def test_strip_code_block_removes_markers():
+def teststrip_code_block_removes_markers():
     """```html ... ``` 코드블록 마커를 제거한다."""
     raw = "```html\n<h1>제목</h1>\n```"
-    assert _strip_code_block(raw) == "<h1>제목</h1>"
+    assert strip_code_block(raw) == "<h1>제목</h1>"
 
 
-def test_strip_code_block_plain_text():
+def teststrip_code_block_plain_text():
     """마커 없는 텍스트는 그대로 반환한다."""
-    assert _strip_code_block("<h1>제목</h1>") == "<h1>제목</h1>"
+    assert strip_code_block("<h1>제목</h1>") == "<h1>제목</h1>"
 
 
 # ── AI 호출을 Mock한 통합 테스트 ──
@@ -45,7 +45,7 @@ async def test_generate_briefing_calls_provider():
 
     fake_provider_instance = type("FakeProvider", (), {"call": lambda self, s, u: "<h2>테스트 브리핑</h2>"})()
 
-    with patch("app.summarizer._get_provider", return_value=fake_provider_instance):
+    with patch("app.summarizer.get_provider", return_value=fake_provider_instance):
         result = generate_briefing(market, disclosures, news)
 
-    assert "<h2>테스트 브리핑</h2>" in result
+    assert "<h2>테스트 브리핑</h2>" in result[0]

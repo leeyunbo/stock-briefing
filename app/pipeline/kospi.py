@@ -1,4 +1,4 @@
-"""브리핑 파이프라인 — 각 단계가 독립 함수, 데이터 클래스로 연결.
+"""국내주식 브리핑 파이프라인 — 각 단계가 독립 함수, 데이터 클래스로 연결.
 
 스프링의 서비스 레이어 분리와 동일:
 - collect_data()  → CollectorService
@@ -13,15 +13,10 @@ import logging
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from sqlalchemy import select
-
 from app.collector.dart import Disclosure, fetch_disclosures
 from app.collector.market import MarketSummary, fetch_market_summary
 from app.collector.news import NewsArticle, fetch_news_for_stocks, fetch_stock_news
-from app.database import async_session
-from app.email_sender import send_briefing_to_subscribers
-from app.email_template import render_email
-from app.models import Briefing, Subscriber
+from app.pipeline.base import BriefingResult, save_briefing, send_emails
 from app.summarizer import generate_briefing
 
 logger = logging.getLogger(__name__)
@@ -58,14 +53,6 @@ class CollectedData:
     news: list[NewsArticle]
     stock_news: dict[str, list[NewsArticle]] = field(default_factory=dict)
     is_market_closed: bool = False
-
-
-@dataclass
-class BriefingResult:
-    """요약 단계의 결과물."""
-
-    title: str
-    html: str
 
 
 # ── 파이프라인 단계 (각각 독립 함수) ──
@@ -144,56 +131,45 @@ async def collect_data() -> CollectedData:
 
 def summarize(data: CollectedData) -> BriefingResult:
     """2단계: 수집 데이터를 AI로 요약한다."""
-    html = generate_briefing(
+    html, seo_title, slug, excerpt, tags = generate_briefing(
         data.market, data.disclosures, data.news, data.stock_news,
         is_market_closed=data.is_market_closed,
     )
-    title = f"{date.today().strftime('%Y년 %m월 %d일')} 주식 아침 브리핑"
+    title = seo_title or f"{date.today().strftime('%Y년 %m월 %d일')} 국내주식 마감 브리핑"
     logger.info("요약 완료: %s", title)
-    return BriefingResult(title=title, html=html)
-
-
-async def save_briefing(result: BriefingResult, briefing_type: str = "kr") -> None:
-    """3단계: 브리핑을 DB에 저장한다 (같은 날+같은 타입 재실행 시 업데이트)."""
-    today = date.today()
-    async with async_session() as db:
-        existing = await db.execute(
-            select(Briefing).where(Briefing.date == today, Briefing.briefing_type == briefing_type)
-        )
-        briefing = existing.scalar_one_or_none()
-        if briefing:
-            briefing.title = result.title
-            briefing.content_html = result.html
-        else:
-            db.add(Briefing(date=today, briefing_type=briefing_type, title=result.title, content_html=result.html))
-        await db.commit()
-
-
-async def send_emails(result: BriefingResult) -> None:
-    """4단계: 구독자에게 이메일을 발송한다."""
-    async with async_session() as db:
-        rows = await db.execute(select(Subscriber.email).where(Subscriber.is_active.is_(True)))
-        emails = [row[0] for row in rows.all()]
-
-    if not emails:
-        logger.info("구독자 없음 — 발송 건너뜀")
-        return
-
-    email_html = render_email(result.title, result.html)
-    results = await send_briefing_to_subscribers(emails, result.title, email_html)
-    logger.info("발송 완료: 성공 %d, 실패 %d", results["success"], results["fail"])
+    return BriefingResult(title=title, html=html, slug=slug, excerpt=excerpt, tags=tags)
 
 
 # ── 오케스트레이터 ──
 
 
-async def run_pipeline() -> str:
-    """전체 파이프라인: 수집 → 요약 → 저장 → 발송."""
+async def run_pipeline(email_to: list[str] | None = None) -> str:
+    """전체 파이프라인: 수집 → 요약 → 저장 → 발송.
+
+    Args:
+        email_to: 발송 대상. None=전체 구독자, []=발송 안 함, ["a@b.com"]=특정 주소.
+    """
     logger.info("브리핑 파이프라인 시작: %s", date.today())
 
     data = await collect_data()
     result = summarize(data)
     await save_briefing(result)
-    await send_emails(result)
+
+    from app.publishing.og_image import generate_og_image
+    from app.publishing.wordpress import publish_to_wordpress
+    og_image = generate_og_image(result.title, "국내주식")
+    await publish_to_wordpress(
+        result.title, result.html, "kospi_briefing",
+        slug=result.slug, excerpt=result.excerpt, tags=result.tags,
+        og_image=og_image,
+    )
+
+    if email_to is None:
+        await send_emails(result)
+    elif email_to:
+        from app.publishing.email_sender import send_briefing_to_subscribers
+        from app.publishing.email_template import render_email
+        email_html = render_email(result.title, result.html)
+        await send_briefing_to_subscribers(email_to, result.title, email_html)
 
     return result.html

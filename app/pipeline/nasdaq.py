@@ -9,8 +9,10 @@ from dataclasses import dataclass
 from datetime import date
 
 from app.collector.nasdaq import NasdaqSummary, fetch_nasdaq_summary
-from app.pipeline import BriefingResult, save_briefing, send_emails
-from app.summarizer import get_provider, strip_code_block
+from app.pipeline.base import BriefingResult, save_briefing, send_emails
+from app.publishing.og_image import generate_og_image
+from app.publishing.wordpress import publish_to_wordpress
+from app.summarizer import SEO_INSTRUCTION, extract_seo_metadata, get_provider, strip_code_block
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,7 @@ NASDAQ_SYSTEM_PROMPT = """당신은 2030 직장인을 위한 미국 주식 뉴�
 
 뉴스 항목 포맷 (반드시 지켜주세요):
 <li><strong>뉴스 제목</strong><br>뉴스 설명 1~2문장</li>
-"""
+""" + SEO_INSTRUCTION
 
 
 # ── 수집 데이터 ──
@@ -116,23 +118,41 @@ def summarize_nasdaq(data: NasdaqCollectedData) -> BriefingResult:
     prompt = _build_nasdaq_prompt(data)
     provider = get_provider()
     raw = provider.call(NASDAQ_SYSTEM_PROMPT, prompt)
-    html = strip_code_block(raw)
+    raw = strip_code_block(raw)
+    html, seo_title, slug, excerpt, tags = extract_seo_metadata(raw)
 
-    title = f"{date.today().strftime('%Y년 %m월 %d일')} 나스닥 마감 브리핑"
+    title = seo_title or f"{date.today().strftime('%Y년 %m월 %d일')} 미국주식 마감 브리핑"
     logger.info("나스닥 요약 완료: %s", title)
-    return BriefingResult(title=title, html=html)
+    return BriefingResult(title=title, html=html, slug=slug, excerpt=excerpt, tags=tags)
 
 
 # ── 오케스트레이터 ──
 
 
-async def run_nasdaq_pipeline() -> str:
-    """전체 나스닥 파이프라인: 수집 → 요약 → 저장 → 발송."""
+async def run_nasdaq_pipeline(email_to: list[str] | None = None) -> str:
+    """전체 나스닥 파이프라인: 수집 → 요약 → 저장 → 발송.
+
+    Args:
+        email_to: 발송 대상. None=전체 구독자, []=발송 안 함, ["a@b.com"]=특정 주소.
+    """
     logger.info("나스닥 브리핑 파이프라인 시작: %s", date.today())
 
     data = await collect_nasdaq()
     result = summarize_nasdaq(data)
     await save_briefing(result, briefing_type="nasdaq")
-    await send_emails(result)
+    og_image = generate_og_image(result.title, "미국주식")
+    await publish_to_wordpress(
+        result.title, result.html, "nasdaq_briefing",
+        slug=result.slug, excerpt=result.excerpt, tags=result.tags,
+        og_image=og_image,
+    )
+
+    if email_to is None:
+        await send_emails(result)
+    elif email_to:
+        from app.publishing.email_sender import send_briefing_to_subscribers
+        from app.publishing.email_template import render_email
+        email_html = render_email(result.title, result.html)
+        await send_briefing_to_subscribers(email_to, result.title, email_html)
 
     return result.html

@@ -2,9 +2,10 @@
 
 import logging
 
-from app.nasdaq_pipeline import run_nasdaq_pipeline
-from app.pipeline import run_pipeline
-from app.research_pipeline import run_news_dive_pipeline
+from app.pipeline.kospi import run_pipeline
+from app.pipeline.nasdaq import run_nasdaq_pipeline
+from app.pipeline.real_estate import run_real_estate_pipeline
+from app.pipeline.research import run_news_dive_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,17 @@ def start_scheduler():
         id="news_dive",
     )
 
+    # 부동산 브리핑: 월~토 오전 7시 (일요일 제외, 이메일 발송 없음)
+    scheduler.add_job(
+        run_real_estate_pipeline,
+        trigger="cron",
+        hour=7,
+        minute=0,
+        day_of_week="mon-sat",
+        id="real_estate_briefing",
+        kwargs={"email_to": []},
+    )
+
     scheduler.start()
-    logger.info("스케줄러 시작: 한국 화~토 7시, 나스닥 화~토 8시, 뉴스딥다이브 화~토 9시")
+    logger.info("스케줄러 시작: 한국 화~토 7시, 나스닥 화~토 8시, 뉴스딥다이브 화~토 9시, 부동산 월~토 7시")
     return scheduler
