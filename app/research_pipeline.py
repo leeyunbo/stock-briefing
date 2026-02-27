@@ -1,9 +1,10 @@
 """주식 리서치 파이프라인 — 두 가지 모드.
 
-Mode A (기본): 테마 기반 종합 리포트
-  Stage 1 — 시장 뉴스 심층분석 → 투자 테마 + 수혜주 후보 도출 (Claude #1)
-  Stage 2 — 후보 종목 재무 스크리닝 (데이터)
-  Stage 3 — 저평가 종목 선별 + 종합 리포트 작성 (Claude #2)
+Mode A (기본): 뉴스 딥다이브 — 시장 코멘터리
+  Stage 1 — 데이터 수집 (뉴스/시세 + 매크로 지표 병렬)
+  Stage 2 — 뉴스 분석 → 핵심 이슈 + 관련/수혜 종목 (Claude #1)
+  Stage 3 — 종목 데이터 보강 (재무지표 스크리닝)
+  Stage 4 — 최종 리포트 생성 (Claude #2)
 
 Mode B (--ticker): 개별 종목 딥리서치
   기존 단일 종목 심화 분석 보고서
@@ -14,10 +15,14 @@ import logging
 import re
 from datetime import date
 
+import asyncio
+
 from app.collector.stock_research import (
     CandidateScreenData,
+    MacroIndicators,
     MarketScanData,
     StockResearchData,
+    fetch_macro_indicators,
     fetch_stock_research,
     scan_market,
     screen_candidates,
@@ -47,55 +52,97 @@ async def _deliver(result: BriefingResult, briefing_type: str, email_to: list[st
 
 
 # ══════════════════════════════════════════════
-# Mode A: 테마 기반 종합 리포트
+# Mode A: 뉴스 딥다이브 — 시장 코멘터리
 # ══════════════════════════════════════════════
 
 
-# ── Stage 1: 뉴스 심층분석 → 테마 + 수혜주 후보 ──
+# ── Stage 2: 뉴스 분석 (Claude #1) ──
 
 
-THEME_ANALYSIS_PROMPT = """당신은 월스트리트 출신 매크로 전략가이자 테마 투자 전문가예요.
+NEWS_ANALYSIS_PROMPT = """당신은 글로벌 매크로 전략가이자 경제 유튜버의 리서처예요.
 
-아래 시장 데이터(뉴스, 시세, 실적 캘린더)를 심층 분석해서:
-1. 지금 가장 주목할 투자 테마 2~3개를 도출하세요
-2. 각 테마별로 수혜주 후보를 제시하세요
+아래 데이터(뉴스, 시세, 매크로 지표)를 분석해서:
+1. 오늘 가장 중요한 뉴스/이슈 2~3개를 선정하세요
+2. 각 이슈가 왜 중요한지, 어떤 종목이 영향받는지 분석하세요
 
-테마 도출 기준:
-- 뉴스에서 반복되는 키워드/트렌드 (정책 변화, 기술 돌파, 산업 구조 변화)
-- 시장이 아직 완전히 반영하지 못한 변화 (2차, 3차 수혜주가 핵심)
-- 실적 서프라이즈가 예상되는 섹터
+이슈 선정 기준:
+- 시장을 실제로 움직인 뉴스 (등락 TOP과 연결)
+- 정책 변화, 실적 서프라이즈, 산업 구조 변화
+- "왜 이런 일이 일어나고 있는지" 설명할 수 있는 이슈
 
-수혜주 선정 기준:
-- 직접 수혜주 (뻔한 대형주) 2~3개
-- 숨은 수혜주 (시장이 아직 연결짓지 못한 종목, 밸류체인 상하류, 부품/인프라) 3~5개
+종목 분석 기준:
+- affected_tickers: 이 이슈로 직접 영향받는 종목 (상승이든 하락이든)
+- beneficiary_tickers: 숨은 수혜주 (밸류체인, 부품, 대체재, 인프라)
   → 이게 핵심! 나스닥 100 밖 종목도 괜찮아요.
-- 총 후보 10~15개
 
 반드시 아래 JSON 형식으로만 응답하세요:
 {
-  "themes": [
+  "stories": [
     {
-      "title": "테마 제목",
-      "thesis": "왜 이 테마가 중요한지 2-3문장",
-      "catalysts": ["촉매1", "촉매2"],
-      "direct_beneficiaries": [
-        {"ticker": "NVDA", "reason": "직접 수혜 이유"}
-      ],
-      "hidden_gems": [
-        {"ticker": "CEG", "reason": "숨은 수혜 이유 — 왜 시장이 놓치고 있는지"}
-      ]
+      "headline": "이슈 제목 (한국어)",
+      "what_happened": "무슨 일이 있었는지 2~3문장",
+      "why_it_matters": "왜 중요한지. 시장/경제에 미치는 영향 2~3문장",
+      "affected_tickers": ["NVDA", "AMD", "TSMC"],
+      "beneficiary_tickers": ["CEG", "VST", "ETN"]
     }
   ]
 }
 """
 
 
-def _build_scan_prompt(scan: MarketScanData) -> str:
-    """스캔 데이터를 테마 분석용 프롬프트로 변환한다."""
+def _fmt_money(value: float | None) -> str:
+    if value is None:
+        return "N/A"
+    abs_val = abs(value)
+    sign = "-" if value < 0 else ""
+    if abs_val >= 1_000_000_000_000:
+        return f"{sign}${abs_val / 1_000_000_000_000:,.1f}T"
+    if abs_val >= 1_000_000_000:
+        return f"{sign}${abs_val / 1_000_000_000:,.1f}B"
+    if abs_val >= 1_000_000:
+        return f"{sign}${abs_val / 1_000_000:,.1f}M"
+    return f"{sign}${abs_val:,.0f}"
+
+
+def _fmt_pct(value: float | None) -> str:
+    if value is None:
+        return "N/A"
+    return f"{value:.1f}%"
+
+
+def _fmt_num(value: float | None) -> str:
+    if value is None:
+        return "N/A"
+    return f"{value:.2f}"
+
+
+def _build_news_analysis_prompt(scan: MarketScanData, macro: MacroIndicators) -> str:
+    """스캔 + 매크로 데이터를 뉴스 분석 프롬프트로 변환한다."""
     parts = [f"## 스캔 일자: {scan.scan_date}\n"]
 
+    # 매크로 지표
+    parts.append("## 매크로 지표")
+    if macro.vix is not None:
+        parts.append(f"- VIX: {macro.vix} ({macro.vix_change:+.2f})" if macro.vix_change is not None else f"- VIX: {macro.vix}")
+    if macro.treasury_10y is not None:
+        parts.append(f"- 10Y 국채금리: {macro.treasury_10y}% ({macro.treasury_10y_change:+.2f}%p)" if macro.treasury_10y_change is not None else f"- 10Y 국채금리: {macro.treasury_10y}%")
+    if macro.dxy is not None:
+        parts.append(f"- 달러인덱스(DXY): {macro.dxy} ({macro.dxy_change:+.2f})" if macro.dxy_change is not None else f"- 달러인덱스(DXY): {macro.dxy}")
+    if macro.fear_greed_value is not None:
+        parts.append(f"- Fear & Greed: {macro.fear_greed_value} ({macro.fear_greed_label})")
+    if macro.sp500_close is not None:
+        parts.append(f"- S&P 500: {macro.sp500_close:,.2f} ({macro.sp500_change_pct:+.2f}%)" if macro.sp500_change_pct is not None else f"- S&P 500: {macro.sp500_close:,.2f}")
+    if macro.nasdaq_close is not None:
+        parts.append(f"- 나스닥: {macro.nasdaq_close:,.2f} ({macro.nasdaq_change_pct:+.2f}%)" if macro.nasdaq_change_pct is not None else f"- 나스닥: {macro.nasdaq_close:,.2f}")
+    if macro.dow_close is not None:
+        parts.append(f"- 다우: {macro.dow_close:,.2f} ({macro.dow_change_pct:+.2f}%)" if macro.dow_change_pct is not None else f"- 다우: {macro.dow_close:,.2f}")
+    if macro.gold_close is not None:
+        parts.append(f"- 금: ${macro.gold_close:,.2f} ({macro.gold_change_pct:+.2f}%)" if macro.gold_change_pct is not None else f"- 금: ${macro.gold_close:,.2f}")
+    if macro.wti_close is not None:
+        parts.append(f"- WTI 유가: ${macro.wti_close:,.2f} ({macro.wti_change_pct:+.2f}%)" if macro.wti_change_pct is not None else f"- WTI 유가: ${macro.wti_close:,.2f}")
+
     if scan.top_gainers:
-        parts.append("## 오늘 상승률 TOP 10")
+        parts.append("\n## 오늘 상승률 TOP 10")
         for s in scan.top_gainers:
             vol_ratio = f", 거래량 {s.volume / s.avg_volume:.1f}x" if s.avg_volume > 0 else ""
             parts.append(f"- {s.ticker}: {s.close:,.2f} ({s.change_pct:+.2f}%{vol_ratio})")
@@ -135,63 +182,62 @@ def _build_scan_prompt(scan: MarketScanData) -> str:
     return "\n".join(parts)
 
 
-def analyze_themes(scan: MarketScanData) -> dict:
-    """Stage 1: Claude에게 시장 데이터를 주고 테마 + 수혜주를 도출한다."""
-    prompt = _build_scan_prompt(scan)
+def analyze_news(scan: MarketScanData, macro: MacroIndicators) -> dict:
+    """Stage 2: Claude에게 뉴스+매크로를 주고 핵심 이슈 + 관련 종목을 도출한다."""
+    prompt = _build_news_analysis_prompt(scan, macro)
     provider = ClaudeCliProvider(timeout=180)
-    raw = provider.call(THEME_ANALYSIS_PROMPT, prompt)
+    raw = provider.call(NEWS_ANALYSIS_PROMPT, prompt)
     raw = strip_code_block(raw.strip())
 
-    # JSON 추출
     json_match = re.search(r'\{[\s\S]+\}', raw)
     if json_match:
         raw = json_match.group()
 
     try:
         result = json.loads(raw)
-        if "themes" not in result:
-            raise ValueError("themes 키 없음")
+        if "stories" not in result:
+            raise ValueError("stories 키 없음")
         return result
     except (json.JSONDecodeError, ValueError) as e:
-        logger.error("테마 분석 JSON 파싱 실패: %s / raw=%s", e, raw[:300])
-        raise RuntimeError(f"Claude 테마 분석 실패: {raw[:300]}") from e
+        logger.error("뉴스 분석 JSON 파싱 실패: %s / raw=%s", e, raw[:300])
+        raise RuntimeError(f"Claude 뉴스 분석 실패: {raw[:300]}") from e
 
 
-def _extract_candidate_tickers(themes: dict) -> list[str]:
-    """테마 분석 결과에서 중복 없이 후보 티커를 추출한다."""
+def _extract_mentioned_tickers(analysis: dict) -> list[str]:
+    """뉴스 분석 결과에서 중복 없이 티커를 추출한다."""
     tickers = []
     seen = set()
-    for theme in themes.get("themes", []):
-        for group in ["direct_beneficiaries", "hidden_gems"]:
-            for stock in theme.get(group, []):
-                t = stock.get("ticker", "").upper().strip()
+    for story in analysis.get("stories", []):
+        for key in ["affected_tickers", "beneficiary_tickers"]:
+            for t in story.get(key, []):
+                t = t.upper().strip()
                 if t and t not in seen:
                     tickers.append(t)
                     seen.add(t)
     return tickers
 
 
-# ── Stage 3: 종합 리포트 작성 ──
+# ── Stage 4: 뉴스 딥다이브 리포트 (Claude #2) ──
 
 
-DISCOVERY_REPORT_PROMPT = """당신은 2030 직장인을 위한 투자 아이디어 뉴스레터 에디터예요.
-뉴닉(Newneek) 스타일로 친근하지만, 내용은 증권사 리서치 수준으로 작성해주세요.
+NEWS_DIVE_REPORT_PROMPT = """당신은 경제 유튜버 스타일의 시장 코멘터리 에디터예요.
+"이걸 사세요"가 아니라 "이런 일이 일어나고 있어요"를 전달하는 게 핵심이에요.
 
-아래 데이터를 분석해서 종합 투자 아이디어 리포트를 작성해주세요:
-- 테마 분석 결과 (Claude가 도출한 테마 + 수혜주)
-- 각 후보 종목의 실제 재무지표 (Finnhub에서 수집)
-
-당신의 핵심 역할:
-1. 테마를 쉽고 재미있게 설명
-2. 재무지표를 기반으로 **진짜 저평가된 종목**을 가려내기
-3. "뻔한 대형주"보다 "시장이 아직 모르는 숨은 종목"에 더 비중
+아래 데이터를 분석해서 뉴스 딥다이브 리포트를 작성해주세요:
+- 뉴스 분석 결과 (핵심 이슈 + 관련 종목)
+- 각 종목의 실제 재무지표
+- 매크로 지표 (VIX, 금리, 달러, Fear & Greed 등)
 
 톤앤매너:
-- "~요" 체 사용
-- 어려운 용어는 괄호로 풀어주기
-- 숫자는 맥락과 함께 (예: "PER 15배인데, 같은 업종 평균이 25배예요. 확실히 싸죠")
+- "~요" 체 사용 (교육적이고 친근한 톤)
+- 어려운 용어는 괄호로 쉽게 풀어주기
+- 투자 권유/추천 절대 금지. "이런 일이 일어나고 있어요" 톤 유지
 - <strong> 태그로 핵심 강조
 - 이모지는 섹션 제목에만 1개씩
+
+종목 표기 규칙:
+- 반드시 "NVDA (엔비디아)" 형식 (티커 + 한국어 회사명)
+- 처음 언급할 때만 풀네임, 이후는 티커만 사용 가능
 
 작성 규칙:
 - HTML 형식 (이메일 발송용)
@@ -202,89 +248,77 @@ DISCOVERY_REPORT_PROMPT = """당신은 2030 직장인을 위한 투자 아이디
 
 섹션 구성:
 
-1. 🔍 오늘의 투자 테마
-- 테마별 2~3문단으로 왜 중요한지, 어떤 변화가 일어나고 있는지
-- 촉매(catalyst)가 뭔지 명확하게
+1. 📌 오늘의 핵심 이슈 (2~3개)
+- 이슈별로:
+  · 무슨 일이 있었는지 (팩트)
+  · 왜 중요한지 (해설)
+  · 직접 영향받는 종목 + 현재 주가/등락
+  · 숨은 수혜주 (밸류체인, 부품, 대체재, 인프라)
+    → 수혜주 테이블: 종목명(티커), 현재가, 시총, PER, ROE, 영업이익률
+  · "주목 포인트" 1~2줄 (이 종목을 왜 눈여겨봐야 하는지)
 
-2. 🗺️ 수혜주 맵
-- 테마별로 직접 수혜 vs 숨은 수혜 구분
-- 각 종목이 왜 수혜를 받는지 한 줄 설명
-- 전체 후보 한눈에 보기 테이블 (종목, 시총, PER, 매출성장률, 영업이익률, 애널리스트매수비율)
+2. 📊 시장 온도 체크
+- VIX, 10Y 국채금리, 달러인덱스, Fear & Greed — 각각 현재 수준 + 의미 해석
+- 주요 지수 (S&P 500, 나스닥, 다우) 등락 + 한 줄 코멘트
+- 금, 유가 동향 + 의미
+- 전체적인 시장 분위기 한 줄 요약
 
-3. 💎 저평가 발굴 종목 (핵심 섹션, 3~5개)
-- 각 종목별로:
-  · 한 줄 요약: "왜 이 종목이 저평가인지"
-  · 사업 설명 (2~3문장)
-  · 핵심 재무지표 + peer 대비 (테이블)
-  · 52주 고저 대비 현재 위치
-  · 투자 포인트 3개 (불릿)
-  · 리스크 1~2개
-- 시장이 아직 반영 안 한 포인트를 강조
+3. ⚡ 오늘 주목할 이벤트
+- 실적 발표 예정 종목 (서프라이즈 가능성 체크)
+- 경제 지표 발표, 연준 일정 등
+- 시장에 영향 줄 수 있는 이벤트
 
-4. ⚡ 실적 캘린더 & 주목 뉴스
-- 실적 발표 예정 종목 중 서프라이즈 가능성
-- 오늘 시장을 움직인 핵심 뉴스 3~5건
-
-5. 🎯 액션 플랜
-- 각 추천 종목별 매수 전략 (적정가, 분할매수 구간)
-- 주의사항 / 손절 기준
-
-재무지표로 검증되지 않는 종목은 과감하게 탈락시키세요. 데이터가 뒷받침하는 종목만 추천!
+투자 권유/추천/매수 전략/목표가 제시 절대 금지!
+"이 종목이 좋다"가 아니라 "이 종목이 이 이슈와 이렇게 연결돼 있어요"라는 교육적 톤을 유지하세요.
 """
 
 
-def _fmt_money(value: float | None) -> str:
-    if value is None:
-        return "N/A"
-    abs_val = abs(value)
-    sign = "-" if value < 0 else ""
-    if abs_val >= 1_000_000_000_000:
-        return f"{sign}${abs_val / 1_000_000_000_000:,.1f}T"
-    if abs_val >= 1_000_000_000:
-        return f"{sign}${abs_val / 1_000_000_000:,.1f}B"
-    if abs_val >= 1_000_000:
-        return f"{sign}${abs_val / 1_000_000:,.1f}M"
-    return f"{sign}${abs_val:,.0f}"
-
-
-def _fmt_pct(value: float | None) -> str:
-    if value is None:
-        return "N/A"
-    return f"{value:.1f}%"
-
-
-def _fmt_num(value: float | None) -> str:
-    if value is None:
-        return "N/A"
-    return f"{value:.2f}"
-
-
-def _build_discovery_prompt(
-    themes: dict,
+def _build_news_dive_prompt(
+    analysis: dict,
     screened: list[CandidateScreenData],
     scan: MarketScanData,
+    macro: MacroIndicators,
 ) -> str:
-    """테마 + 스크리닝 데이터를 종합 리포트 프롬프트로 변환한다."""
+    """뉴스 분석 + 스크리닝 + 매크로를 최종 리포트 프롬프트로 변환한다."""
     parts = [f"## 분석 일자: {scan.scan_date}\n"]
 
-    # 테마 분석 결과
-    parts.append("## Claude 테마 분석 결과")
-    for i, theme in enumerate(themes.get("themes", []), 1):
-        parts.append(f"\n### 테마 {i}: {theme.get('title', '')}")
-        parts.append(f"논지: {theme.get('thesis', '')}")
-        catalysts = theme.get("catalysts", [])
-        if catalysts:
-            parts.append(f"촉매: {', '.join(catalysts)}")
-        for label, key in [("직접 수혜", "direct_beneficiaries"), ("숨은 수혜", "hidden_gems")]:
-            stocks = theme.get(key, [])
-            if stocks:
-                parts.append(f"\n{label}:")
-                for s in stocks:
-                    parts.append(f"- {s.get('ticker', '')}: {s.get('reason', '')}")
+    # 매크로 지표
+    parts.append("## 매크로 지표")
+    if macro.vix is not None:
+        parts.append(f"- VIX: {macro.vix} ({macro.vix_change:+.2f})" if macro.vix_change is not None else f"- VIX: {macro.vix}")
+    if macro.treasury_10y is not None:
+        parts.append(f"- 10Y 국채금리: {macro.treasury_10y}% ({macro.treasury_10y_change:+.2f}%p)" if macro.treasury_10y_change is not None else f"- 10Y 국채금리: {macro.treasury_10y}%")
+    if macro.dxy is not None:
+        parts.append(f"- 달러인덱스(DXY): {macro.dxy} ({macro.dxy_change:+.2f})" if macro.dxy_change is not None else f"- 달러인덱스(DXY): {macro.dxy}")
+    if macro.fear_greed_value is not None:
+        parts.append(f"- Fear & Greed: {macro.fear_greed_value} ({macro.fear_greed_label})")
+    if macro.sp500_close is not None:
+        parts.append(f"- S&P 500: {macro.sp500_close:,.2f} ({macro.sp500_change_pct:+.2f}%)" if macro.sp500_change_pct is not None else f"- S&P 500: {macro.sp500_close:,.2f}")
+    if macro.nasdaq_close is not None:
+        parts.append(f"- 나스닥: {macro.nasdaq_close:,.2f} ({macro.nasdaq_change_pct:+.2f}%)" if macro.nasdaq_change_pct is not None else f"- 나스닥: {macro.nasdaq_close:,.2f}")
+    if macro.dow_close is not None:
+        parts.append(f"- 다우: {macro.dow_close:,.2f} ({macro.dow_change_pct:+.2f}%)" if macro.dow_change_pct is not None else f"- 다우: {macro.dow_close:,.2f}")
+    if macro.gold_close is not None:
+        parts.append(f"- 금: ${macro.gold_close:,.2f} ({macro.gold_change_pct:+.2f}%)" if macro.gold_change_pct is not None else f"- 금: ${macro.gold_close:,.2f}")
+    if macro.wti_close is not None:
+        parts.append(f"- WTI 유가: ${macro.wti_close:,.2f} ({macro.wti_change_pct:+.2f}%)" if macro.wti_change_pct is not None else f"- WTI 유가: ${macro.wti_close:,.2f}")
+
+    # 뉴스 분석 결과
+    parts.append("\n## 핵심 이슈 분석 (Claude #1 결과)")
+    for i, story in enumerate(analysis.get("stories", []), 1):
+        parts.append(f"\n### 이슈 {i}: {story.get('headline', '')}")
+        parts.append(f"무슨 일: {story.get('what_happened', '')}")
+        parts.append(f"왜 중요: {story.get('why_it_matters', '')}")
+        affected = story.get("affected_tickers", [])
+        if affected:
+            parts.append(f"직접 영향: {', '.join(affected)}")
+        beneficiaries = story.get("beneficiary_tickers", [])
+        if beneficiaries:
+            parts.append(f"숨은 수혜: {', '.join(beneficiaries)}")
 
     # 스크리닝 결과
     if screened:
-        parts.append("\n## 후보 종목 재무지표 (Finnhub 실측)")
+        parts.append("\n## 언급 종목 재무지표 (Finnhub 실측)")
         for s in screened:
             cap = _fmt_money(s.market_cap * 1_000_000) if s.market_cap else "N/A"
             w52 = ""
@@ -323,53 +357,57 @@ def _build_discovery_prompt(
     return "\n".join(parts)
 
 
-def generate_discovery_report(
-    themes: dict,
+def generate_news_dive_report(
+    analysis: dict,
     screened: list[CandidateScreenData],
     scan: MarketScanData,
+    macro: MacroIndicators,
 ) -> BriefingResult:
-    """Stage 3: 테마 + 재무지표를 기반으로 종합 리포트를 생성한다."""
-    prompt = _build_discovery_prompt(themes, screened, scan)
+    """Stage 4: 뉴스 분석 + 재무지표 + 매크로로 최종 리포트를 생성한다."""
+    prompt = _build_news_dive_prompt(analysis, screened, scan, macro)
     provider = ClaudeCliProvider(timeout=300)
-    raw = provider.call(DISCOVERY_REPORT_PROMPT, prompt)
+    raw = provider.call(NEWS_DIVE_REPORT_PROMPT, prompt)
     html = strip_code_block(raw)
 
-    title = f"{date.today().strftime('%Y년 %m월 %d일')} 투자 아이디어 리포트"
-    logger.info("종합 리포트 생성 완료: %s", title)
+    title = f"{date.today().strftime('%Y년 %m월 %d일')} 뉴스 딥다이브"
+    logger.info("뉴스 딥다이브 리포트 생성 완료: %s", title)
     return BriefingResult(title=title, html=html)
 
 
-async def run_discovery_pipeline(email_to: list[str] | None = None) -> str:
-    """테마 기반 종합 리포트 파이프라인.
+async def run_news_dive_pipeline(email_to: list[str] | None = None) -> str:
+    """뉴스 딥다이브 파이프라인 — 4단계.
 
-    Stage 1 → 시장 스캔 + 테마 분석 (Claude #1)
-    Stage 2 → 후보 종목 재무 스크리닝 (데이터)
-    Stage 3 → 종합 리포트 작성 (Claude #2)
+    Stage 1 → 데이터 수집 (뉴스/시세 + 매크로 병렬)
+    Stage 2 → 뉴스 분석 (Claude #1)
+    Stage 3 → 종목 데이터 보강 (재무 스크리닝)
+    Stage 4 → 최종 리포트 (Claude #2)
     """
-    logger.info("투자 아이디어 파이프라인 시작: %s", date.today())
+    logger.info("뉴스 딥다이브 파이프라인 시작: %s", date.today())
 
-    # Stage 1: 시장 스캔
-    logger.info("[Stage 1] 시장 스캔 시작...")
-    scan_data = await scan_market()
+    # Stage 1: 데이터 수집 (병렬)
+    logger.info("[Stage 1] 시장 스캔 + 매크로 지표 수집...")
+    scan_data, macro_data = await asyncio.gather(scan_market(), fetch_macro_indicators())
+    logger.info("[Stage 1] 스캔 완료: 뉴스 %d건, 매크로 VIX=%s",
+                len(scan_data.market_news), macro_data.vix)
 
-    # Stage 1: 테마 분석 (Claude #1)
-    logger.info("[Stage 1] 테마 분석 중...")
-    themes = analyze_themes(scan_data)
-    candidate_tickers = _extract_candidate_tickers(themes)
-    logger.info("[Stage 1] 테마 %d개, 후보 종목 %d개 도출",
-                len(themes.get("themes", [])), len(candidate_tickers))
+    # Stage 2: 뉴스 분석 (Claude #1)
+    logger.info("[Stage 2] 뉴스 분석 중...")
+    analysis = analyze_news(scan_data, macro_data)
+    mentioned_tickers = _extract_mentioned_tickers(analysis)
+    logger.info("[Stage 2] 이슈 %d개, 언급 종목 %d개",
+                len(analysis.get("stories", [])), len(mentioned_tickers))
 
-    # Stage 2: 재무 스크리닝 (데이터)
-    logger.info("[Stage 2] 후보 %d개 재무 스크리닝...", len(candidate_tickers))
-    screened = await screen_candidates(candidate_tickers)
-    logger.info("[Stage 2] 스크리닝 완료: %d개 종목 데이터 확보", len(screened))
+    # Stage 3: 종목 데이터 보강
+    logger.info("[Stage 3] %d개 종목 재무 스크리닝...", len(mentioned_tickers))
+    screened = await screen_candidates(mentioned_tickers)
+    logger.info("[Stage 3] 스크리닝 완료: %d개 종목 데이터 확보", len(screened))
 
-    # Stage 3: 종합 리포트 (Claude #2)
-    logger.info("[Stage 3] 종합 리포트 작성 중...")
-    result = generate_discovery_report(themes, screened, scan_data)
+    # Stage 4: 최종 리포트 (Claude #2)
+    logger.info("[Stage 4] 뉴스 딥다이브 리포트 작성 중...")
+    result = generate_news_dive_report(analysis, screened, scan_data, macro_data)
 
     # 저장 + 발송
-    await _deliver(result, briefing_type="research_discovery", email_to=email_to)
+    await _deliver(result, briefing_type="news_dive", email_to=email_to)
 
     return result.html
 

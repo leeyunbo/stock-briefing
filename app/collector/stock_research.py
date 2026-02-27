@@ -41,6 +41,28 @@ NASDAQ_100 = [
 # ── Pydantic 모델: 마켓 스캔 ──
 
 
+class MacroIndicators(BaseModel):
+    """매크로 지표 — VIX, 금리, 달러, 지수, 원자재."""
+    vix: float | None = None
+    vix_change: float | None = None
+    treasury_10y: float | None = None
+    treasury_10y_change: float | None = None
+    dxy: float | None = None
+    dxy_change: float | None = None
+    fear_greed_value: int | None = None
+    fear_greed_label: str = ""
+    sp500_close: float | None = None
+    sp500_change_pct: float | None = None
+    nasdaq_close: float | None = None
+    nasdaq_change_pct: float | None = None
+    dow_close: float | None = None
+    dow_change_pct: float | None = None
+    gold_close: float | None = None
+    gold_change_pct: float | None = None
+    wti_close: float | None = None
+    wti_change_pct: float | None = None
+
+
 class MarketScanStock(BaseModel):
     """스캔 시 개별 종목 데이터."""
     ticker: str
@@ -388,6 +410,97 @@ def _yf_bulk_quotes() -> list[MarketScanStock]:
         except Exception as e:
             logger.warning("yfinance 시세 에러 (%s): %s", symbol, e)
     return results
+
+
+# ══════════════════════════════════════════════
+# Part 1.5: 매크로 지표 수집
+# ══════════════════════════════════════════════
+
+
+async def fetch_macro_indicators() -> MacroIndicators:
+    """VIX, 금리, 달러, 주요 지수, 원자재, Fear & Greed를 수집한다."""
+    yf_task = asyncio.to_thread(_yf_macro_quotes)
+    fg_task = _fetch_fear_greed()
+
+    yf_result, fg_result = await asyncio.gather(yf_task, fg_task, return_exceptions=True)
+
+    macro = MacroIndicators()
+
+    if not isinstance(yf_result, BaseException) and yf_result:
+        for field, value in yf_result.items():
+            setattr(macro, field, value)
+    else:
+        logger.error("매크로 yfinance 수집 실패: %s", yf_result)
+
+    if not isinstance(fg_result, BaseException) and fg_result:
+        macro.fear_greed_value = fg_result.get("value")
+        macro.fear_greed_label = fg_result.get("label", "")
+    else:
+        logger.warning("Fear & Greed 수집 실패: %s", fg_result)
+
+    logger.info("매크로 지표 수집 완료: VIX=%s, 10Y=%s, F&G=%s",
+                macro.vix, macro.treasury_10y, macro.fear_greed_value)
+    return macro
+
+
+def _yf_macro_quotes() -> dict:
+    """yfinance로 매크로 지표를 일괄 조회한다 (동기)."""
+    import yfinance as yf
+
+    symbols = {
+        "^VIX": ("vix", "vix_change"),
+        "^TNX": ("treasury_10y", "treasury_10y_change"),
+        "DX-Y.NYB": ("dxy", "dxy_change"),
+        "^GSPC": ("sp500_close", "sp500_change_pct"),
+        "^IXIC": ("nasdaq_close", "nasdaq_change_pct"),
+        "^DJI": ("dow_close", "dow_change_pct"),
+        "GC=F": ("gold_close", "gold_change_pct"),
+        "CL=F": ("wti_close", "wti_change_pct"),
+    }
+
+    result = {}
+    tickers = yf.Tickers(" ".join(symbols.keys()))
+
+    for symbol, (close_field, change_field) in symbols.items():
+        try:
+            t = tickers.tickers.get(symbol)
+            if not t:
+                continue
+            hist = t.history(period="5d")
+            if hist.empty or len(hist) < 2:
+                continue
+            close = float(hist["Close"].iloc[-1])
+            prev = float(hist["Close"].iloc[-2])
+            if "change_pct" in change_field:
+                change = ((close - prev) / prev * 100) if prev != 0 else 0
+                result[close_field] = round(close, 2)
+                result[change_field] = round(change, 2)
+            else:
+                # VIX, 10Y, DXY: 절대 변화량
+                result[close_field] = round(close, 2)
+                result[change_field] = round(close - prev, 2)
+        except Exception as e:
+            logger.warning("매크로 yfinance 에러 (%s): %s", symbol, e)
+
+    return result
+
+
+async def _fetch_fear_greed() -> dict | None:
+    """CNN Fear & Greed Index를 조회한다."""
+    url = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+            resp.raise_for_status()
+            data = resp.json()
+            fg = data.get("fear_and_greed", {})
+            score = fg.get("score")
+            rating = fg.get("rating", "")
+            if score is not None:
+                return {"value": int(round(score)), "label": rating}
+    except Exception as e:
+        logger.warning("Fear & Greed 에러: %s", e)
+    return None
 
 
 # ══════════════════════════════════════════════

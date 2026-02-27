@@ -17,7 +17,7 @@ from pathlib import Path
 def main() -> None:
     parser = argparse.ArgumentParser(description="주식 리서치 파이프라인")
     parser.add_argument("--ticker", type=str, default=None,
-                        help="개별 종목 딥리서치 모드 (미지정 시 테마 기반 종합 리포트)")
+                        help="개별 종목 딥리서치 모드 (미지정 시 뉴스 딥다이브)")
     parser.add_argument("--email", type=str, nargs="+", default=None,
                         help="발송할 이메일 주소 (미지정 시 전체 구독자)")
     parser.add_argument("--no-email", action="store_true",
@@ -48,11 +48,11 @@ def main() -> None:
         html = asyncio.run(run_deep_research_pipeline(ticker=ticker, email_to=email_to))
         out_path = Path(f"/tmp/research_{ticker.lower()}.html")
     else:
-        # Mode A: 테마 기반 종합 리포트
-        logger.info("테마 기반 투자 아이디어 리포트 시작")
-        from app.research_pipeline import run_discovery_pipeline
-        html = asyncio.run(run_discovery_pipeline(email_to=email_to))
-        out_path = Path("/tmp/research_discovery.html")
+        # Mode A: 뉴스 딥다이브
+        logger.info("뉴스 딥다이브 리포트 시작")
+        from app.research_pipeline import run_news_dive_pipeline
+        html = asyncio.run(run_news_dive_pipeline(email_to=email_to))
+        out_path = Path("/tmp/news_dive.html")
 
     out_path.write_text(html, encoding="utf-8")
     logger.info("리포트 저장: %s", out_path)
