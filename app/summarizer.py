@@ -2,10 +2,12 @@
 
 스프링의 Interface + @Qualifier 패턴과 대응:
 - Protocol = interface (구조적 타이핑 — implements 선언 불필요)
-- ClaudeProvider / GeminiProvider = 구현체
+- ClaudeProvider / GeminiProvider / ClaudeCliProvider = 구현체
 - get_provider() = @Qualifier 또는 @ConditionalOnProperty 팩토리
 """
 
+import os
+import subprocess
 from typing import Protocol
 
 from app.collector.dart import Disclosure
@@ -60,13 +62,32 @@ class GeminiProvider:
         return response.text
 
 
+class ClaudeCliProvider:
+    """Claude Code CLI 구현체. API 키 불필요, 구독 크레딧 활용."""
+
+    def call(self, system_prompt: str, user_prompt: str) -> str:
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+        result = subprocess.run(
+            ["claude", "-p", f"{system_prompt}\n\n{user_prompt}", "--output-format", "text"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=env,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"claude CLI 에러: {result.stderr}")
+        return result.stdout
+
+
 # ── 팩토리 함수 (스프링의 @ConditionalOnProperty) ──
 
 
-def _get_provider() -> AiProvider:
+def get_provider() -> AiProvider:
     """설정에 따라 AI 제공자를 반환한다."""
     if settings.ai_provider == "gemini":
         return GeminiProvider()
+    if settings.ai_provider == "claude-cli":
+        return ClaudeCliProvider()
     return ClaudeProvider()
 
 
@@ -132,9 +153,9 @@ def generate_briefing(
     if is_market_closed:
         return _build_closed_market_briefing(news)
     prompt = _build_prompt(market, disclosures, news, stock_news)
-    provider = _get_provider()
+    provider = get_provider()
     raw = provider.call(SYSTEM_PROMPT, prompt)
-    return _strip_code_block(raw)
+    return strip_code_block(raw)
 
 
 # ── 내부 헬퍼 ──
@@ -150,13 +171,13 @@ def _build_closed_market_briefing(news: list[NewsArticle]) -> str:
         desc = n.description[:150]
         parts.append(f"- {n.title}: {desc}")
 
-    provider = _get_provider()
+    provider = get_provider()
     raw = provider.call(SYSTEM_PROMPT, "\n".join(parts))
-    news_html = _strip_code_block(raw)
+    news_html = strip_code_block(raw)
     return f"{_CLOSED_GREETING}\n{news_html}"
 
 
-def _strip_code_block(text: str) -> str:
+def strip_code_block(text: str) -> str:
     """AI 응답에서 ```html ... ``` 코드블록 마커를 제거한다."""
     text = text.strip()
     if text.startswith("```"):

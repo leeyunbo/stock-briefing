@@ -153,17 +153,19 @@ def summarize(data: CollectedData) -> BriefingResult:
     return BriefingResult(title=title, html=html)
 
 
-async def save_briefing(result: BriefingResult) -> None:
-    """3단계: 브리핑을 DB에 저장한다 (같은 날 재실행 시 업데이트)."""
+async def save_briefing(result: BriefingResult, briefing_type: str = "kr") -> None:
+    """3단계: 브리핑을 DB에 저장한다 (같은 날+같은 타입 재실행 시 업데이트)."""
     today = date.today()
     async with async_session() as db:
-        existing = await db.execute(select(Briefing).where(Briefing.date == today))
+        existing = await db.execute(
+            select(Briefing).where(Briefing.date == today, Briefing.briefing_type == briefing_type)
+        )
         briefing = existing.scalar_one_or_none()
         if briefing:
             briefing.title = result.title
             briefing.content_html = result.html
         else:
-            db.add(Briefing(date=today, title=result.title, content_html=result.html))
+            db.add(Briefing(date=today, briefing_type=briefing_type, title=result.title, content_html=result.html))
         await db.commit()
 
 

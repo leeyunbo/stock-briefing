@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     naver_client_secret: str
 
     # AI Provider
-    ai_provider: Literal["claude", "gemini"] = "claude"
+    ai_provider: Literal["claude", "gemini", "claude-cli"] = "claude"
     claude_model: str = "claude-sonnet-4-5-20250929"
     gemini_model: str = "gemini-2.0-flash"
 
@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     smtp_port: int = 587  # str→int 자동 변환 (스프링의 @Value 타입 변환)
     smtp_user: str
     smtp_password: str
+
+    # Nasdaq (Finnhub)
+    finnhub_api_key: str
+    nasdaq_watchlist: str = "AAPL,NVDA,MSFT,GOOGL,AMZN,META,TSLA,PLTR,CRM,SNOW,NOW,SMCI"
 
     # HTTP
     api_timeout: int = 15
