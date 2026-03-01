@@ -1,22 +1,20 @@
-"""테스트 공유 Fixture.
-
-conftest.py에 정의한 fixture는 같은 디렉토리의 모든 테스트에서 사용할 수 있다.
-"""
+"""테스트 공유 Fixture."""
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from app.core.database import Base, get_db
-from app.core.models import Subscriber, Briefing
+from main import app
+from tests.db_setup import TestSession, engine
 
 
-# ── 테스트용 인메모리 DB ──
+async def override_get_db():
+    """테스트용 DB 세션을 주입한다."""
+    async with TestSession() as session:
+        yield session
 
-TEST_DB_URL = "sqlite+aiosqlite://"  # 인메모리 SQLite
 
-engine = create_async_engine(TEST_DB_URL, echo=False)
-TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+app.dependency_overrides[get_db] = override_get_db
 
 
 @pytest_asyncio.fixture

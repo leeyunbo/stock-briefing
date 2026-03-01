@@ -48,4 +48,4 @@ async def test_generate_briefing_calls_provider():
     with patch("app.summarizer.get_provider", return_value=fake_provider_instance):
         result = generate_briefing(market, disclosures, news)
 
-    assert "<h2>테스트 브리핑</h2>" in result[0]
+    assert "<h2>테스트 브리핑</h2>" in result.html

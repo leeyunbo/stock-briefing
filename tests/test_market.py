@@ -35,12 +35,10 @@ async def test_fetch_market_summary_success():
             return httpx.Response(200, json=trend_json, request=httpx.Request("GET", url))
         return httpx.Response(404, request=httpx.Request("GET", url))
 
-    with patch("app.collector.market.httpx.AsyncClient") as MockClient:
-        mock_instance = AsyncMock()
-        mock_instance.get = fake_get
-        MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+    mock_client = AsyncMock()
+    mock_client.get = fake_get
 
+    with patch("app.collector.market.get_http_client", return_value=mock_client):
         result = await fetch_market_summary()
 
     assert isinstance(result, MarketSummary)
@@ -51,12 +49,10 @@ async def test_fetch_market_summary_success():
 @pytest.mark.asyncio
 async def test_fetch_market_summary_all_fail():
     """모든 API 호출 실패 시 빈 MarketSummary를 반환한다."""
-    with patch("app.collector.market.httpx.AsyncClient") as MockClient:
-        mock_instance = AsyncMock()
-        mock_instance.get.side_effect = httpx.ConnectError("연결 실패")
-        MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+    mock_client = AsyncMock()
+    mock_client.get.side_effect = httpx.ConnectError("연결 실패")
 
+    with patch("app.collector.market.get_http_client", return_value=mock_client):
         result = await fetch_market_summary()
 
     assert isinstance(result, MarketSummary)

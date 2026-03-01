@@ -42,17 +42,15 @@ async def test_fetch_news_success():
         request=httpx.Request("GET", "https://test.com"),
     )
 
-    with patch("app.collector.news.httpx.AsyncClient") as MockClient:
-        mock_instance = AsyncMock()
-        mock_instance.get.return_value = fake_response
-        MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+    mock_client = AsyncMock()
+    mock_client.get.return_value = fake_response
 
+    with patch("app.collector.news.get_http_client", return_value=mock_client):
         result = await fetch_news(query="삼성전자", count=1)
 
     assert len(result) == 1
     assert isinstance(result[0], NewsArticle)
-    assert result[0].title == "삼성전자 실적 발표"  # HTML 태그 제거됨
+    assert result[0].title == "삼성전자 실적 발표"
 
 
 @pytest.mark.asyncio
@@ -63,12 +61,10 @@ async def test_fetch_news_http_error_returns_empty():
         request=httpx.Request("GET", "https://test.com"),
     )
 
-    with patch("app.collector.news.httpx.AsyncClient") as MockClient:
-        mock_instance = AsyncMock()
-        mock_instance.get.return_value = fake_response
-        MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+    mock_client = AsyncMock()
+    mock_client.get.return_value = fake_response
 
+    with patch("app.collector.news.get_http_client", return_value=mock_client):
         result = await fetch_news(query="테스트")
 
     assert result == []
@@ -77,12 +73,10 @@ async def test_fetch_news_http_error_returns_empty():
 @pytest.mark.asyncio
 async def test_fetch_news_network_error_returns_empty():
     """네트워크 에러 시 빈 리스트를 반환한다."""
-    with patch("app.collector.news.httpx.AsyncClient") as MockClient:
-        mock_instance = AsyncMock()
-        mock_instance.get.side_effect = httpx.ConnectError("연결 실패")
-        MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+    mock_client = AsyncMock()
+    mock_client.get.side_effect = httpx.ConnectError("연결 실패")
 
+    with patch("app.collector.news.get_http_client", return_value=mock_client):
         result = await fetch_news(query="테스트")
 
     assert result == []

@@ -30,12 +30,10 @@ async def test_fetch_disclosures_success():
         request=httpx.Request("GET", "https://test.com"),
     )
 
-    with patch("app.collector.dart.httpx.AsyncClient") as MockClient:
-        mock_instance = AsyncMock()
-        mock_instance.get.return_value = fake_response
-        MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+    mock_client = AsyncMock()
+    mock_client.get.return_value = fake_response
 
+    with patch("app.collector.dart.get_http_client", return_value=mock_client):
         result = await fetch_disclosures(target_date=date(2025, 2, 11))
 
     assert len(result) >= 1
@@ -46,12 +44,10 @@ async def test_fetch_disclosures_success():
 @pytest.mark.asyncio
 async def test_fetch_disclosures_network_error():
     """네트워크 에러 시 빈 리스트를 반환한다."""
-    with patch("app.collector.dart.httpx.AsyncClient") as MockClient:
-        mock_instance = AsyncMock()
-        mock_instance.get.side_effect = httpx.ConnectError("연결 실패")
-        MockClient.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        MockClient.return_value.__aexit__ = AsyncMock(return_value=False)
+    mock_client = AsyncMock()
+    mock_client.get.side_effect = httpx.ConnectError("연결 실패")
 
+    with patch("app.collector.dart.get_http_client", return_value=mock_client):
         result = await fetch_disclosures(target_date=date(2025, 2, 11))
 
     assert result == []

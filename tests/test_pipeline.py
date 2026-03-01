@@ -6,22 +6,15 @@ from unittest.mock import AsyncMock, patch, MagicMock
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from app.collector.dart import Disclosure
 from app.collector.market import MarketSummary, IndexData
 from app.collector.news import NewsArticle
 from app.core.database import Base
 from app.core.models import Briefing
-from app.pipeline.base import BriefingResult
-from app.pipeline.kospi import CollectedData, collect_data, summarize, save_briefing, _is_market_closed_yesterday, _filter_disclosures
-
-
-# ── 테스트용 DB 설정 ──
-
-TEST_DB_URL = "sqlite+aiosqlite://"
-test_engine = create_async_engine(TEST_DB_URL, echo=False)
-TestSession = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+from app.pipeline.base import BriefingResult, save_briefing
+from app.pipeline.kospi import CollectedData, collect_data, summarize, _is_market_closed_yesterday, _filter_disclosures, _DISCLOSURE_FALLBACK_COUNT
+from tests.db_setup import TestSession, engine as test_engine
 
 
 @pytest.mark.asyncio
@@ -59,7 +52,9 @@ def test_summarize():
         news=[],
     )
 
-    with patch("app.pipeline.kospi.generate_briefing", return_value=("<h2>요약</h2>", "", "", "", [])):
+    from app.summarizer import SeoMetadata
+    fake_seo = SeoMetadata(html="<h2>요약</h2>")
+    with patch("app.pipeline.kospi.generate_briefing", return_value=fake_seo):
         result = summarize(data)
 
     assert isinstance(result, BriefingResult)
@@ -68,11 +63,8 @@ def test_summarize():
 
 
 @pytest.mark.asyncio
-async def test_save_briefing_creates_new():
+async def test_save_briefing_creates_new(db_session):
     """save_briefing이 새 브리핑을 DB에 저장한다."""
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
     result = BriefingResult(title="테스트 브리핑", html="<h2>내용</h2>")
 
     with patch("app.pipeline.base.async_session", TestSession):
@@ -83,9 +75,6 @@ async def test_save_briefing_creates_new():
         briefing = row.scalar_one_or_none()
         assert briefing is not None
         assert briefing.title == "테스트 브리핑"
-
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest.mark.asyncio
@@ -180,10 +169,10 @@ def test_filter_disclosures_keyword_match():
 
 
 def test_filter_disclosures_no_match_fallback():
-    """키워드 매칭이 없으면 상위 5건을 반환한다."""
+    """키워드 매칭이 없으면 상위 N건을 반환한다."""
     disclosures = [_make_disclosure(f"사업보고서 ({i})") for i in range(10)]
     result = _filter_disclosures(disclosures)
-    assert len(result) == 5
+    assert len(result) == _DISCLOSURE_FALLBACK_COUNT
 
 
 def test_filter_disclosures_empty():
