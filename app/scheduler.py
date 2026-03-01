@@ -36,27 +36,26 @@ def start_scheduler():
         id="nasdaq_briefing",
     )
 
-    # 뉴스 딥다이브: 화~토 오전 9시 (나스닥 브리핑 후 시장 코멘터리)
+    # 뉴스 딥다이브: 매일 오전 9시 (뉴스는 주말에도 발생)
     scheduler.add_job(
         run_news_dive_pipeline,
         trigger="cron",
         hour=9,
         minute=0,
-        day_of_week="tue-sat",
         id="news_dive",
     )
 
-    # 부동산 브리핑: 월~토 오전 7시 (일요일 제외, 이메일 발송 없음)
+    # 부동산 브리핑: 월요일 오전 7시 (주간 1회, 이메일 발송 없음)
     scheduler.add_job(
         run_real_estate_pipeline,
         trigger="cron",
         hour=7,
         minute=0,
-        day_of_week="mon-sat",
+        day_of_week="mon",
         id="real_estate_briefing",
         kwargs={"email_to": []},
     )
 
     scheduler.start()
-    logger.info("스케줄러 시작: 한국 화~토 7시, 나스닥 화~토 8시, 뉴스딥다이브 화~토 9시, 부동산 월~토 7시")
+    logger.info("스케줄러 시작: 한국 화~토 7시, 나스닥 화~토 8시, 뉴스딥다이브 매일 9시, 부동산 월 7시")
     return scheduler

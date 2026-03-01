@@ -1,10 +1,4 @@
-"""브리핑 아카이브 페이지.
-
-스프링 대응:
-- Query(ge=1) = @RequestParam @Min(1) (파라미터 검증)
-- offset/limit = Pageable + Page<T> (페이지네이션)
-- func.count() = JPA의 countQuery (전체 건수 조회)
-"""
+"""브리핑 아카이브 페이지."""
 
 from datetime import date as date_type
 
@@ -14,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.models import Briefing
 
@@ -29,7 +23,7 @@ async def archive_list(
     page: int = Query(default=1, ge=1),
     db: AsyncSession = Depends(get_db),
 ):
-    page_size = settings.archive_page_size
+    page_size = get_settings().archive_page_size
 
     base_query = select(Briefing)
     if q:
