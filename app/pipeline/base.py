@@ -31,6 +31,7 @@ class BriefingResult:
     slug: str = ""
     excerpt: str = ""
     tags: list[str] = field(default_factory=list)
+    focus_keyword: str = ""
 
 
 # ── 파이프라인 컨텍스트 타입 ──
@@ -92,6 +93,8 @@ class WordPressPublisher:
             result.title, result.html, briefing_type,
             slug=result.slug, excerpt=result.excerpt, tags=result.tags,
             og_image=og_image,
+            focus_keyword=result.focus_keyword,
+            seo_description=result.excerpt,
         )
         blog_url = wp_result[1] if wp_result else ""
         return {"blog_url": blog_url, "category": category}

@@ -110,4 +110,4 @@ def generate_real_estate_report(data: RealEstateData, run_id: str = "") -> Brief
 
     title = seo.title or f"{date.today().strftime('%Y년 %m월 %d일')} 부동산 브리핑"
     logger.info("부동산 브리핑 리포트 생성 완료: %s", title)
-    return BriefingResult(title=title, html=seo.html, slug=seo.slug, excerpt=seo.excerpt, tags=seo.tags)
+    return BriefingResult(title=title, html=seo.html, slug=seo.slug, excerpt=seo.excerpt, tags=seo.tags, focus_keyword=seo.focus_keyword)

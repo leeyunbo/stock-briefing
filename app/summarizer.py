@@ -32,6 +32,7 @@ class SeoMetadata:
     slug: str = ""
     excerpt: str = ""
     tags: list[str] = field(default_factory=list)
+    focus_keyword: str = ""
 
 
 class ClaudeProvider:
@@ -198,11 +199,12 @@ SEO_INSTRUCTION = """
 
 마지막으로, HTML 본문 아래에 SEO 메타데이터를 한 줄 JSON으로 출력하세요:
 <!-- SEO -->
-{"title": "오늘의 핵심 이슈 한 줄 제목!", "slug": "영문-날짜-키워드", "excerpt": "1~2문장 요약", "tags": ["태그1", "태그2"]}
+{"title": "오늘의 핵심 이슈 한 줄 제목!", "slug": "영문-날짜-키워드", "excerpt": "1~2문장 요약", "tags": ["태그1", "태그2"], "focus_keyword": "핵심 검색 키워드"}
 title: 그 날 시장의 메인 이슈를 담은 매력적인 제목. 예) "엔비디아 실적 서프라이즈! 국내주식 마감 브리핑"
 slug: 영문+숫자+하이픈만, 날짜 포함, 키워드 2~3개
 excerpt: 100자 이내
 tags: 본문 핵심 키워드 3~5개 (한국어)
+focus_keyword: Rank Math SEO용 핵심 키워드 1개 (한국어, 검색량 높은 단어)
 """
 
 SYSTEM_PROMPT += WRITING_STYLE_RULES + SEO_INSTRUCTION
@@ -232,6 +234,7 @@ def extract_seo_metadata(raw: str) -> SeoMetadata:
             slug=data.get("slug", ""),
             excerpt=data.get("excerpt", ""),
             tags=tags,
+            focus_keyword=data.get("focus_keyword", ""),
         )
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning("SEO 메타데이터 파싱 실패: %s", e)

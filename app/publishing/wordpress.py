@@ -102,6 +102,34 @@ async def _resolve_tag_ids(client: httpx.AsyncClient, tags: list[str]) -> list[i
     return tag_ids
 
 
+async def _update_rankmath_meta(
+    client: httpx.AsyncClient,
+    post_id: int,
+    focus_keyword: str,
+    description: str,
+) -> None:
+    """Rank Math SEO 메타데이터를 업데이트한다."""
+    meta = {}
+    if focus_keyword:
+        meta["rank_math_focus_keyword"] = focus_keyword
+    if description:
+        meta["rank_math_description"] = description
+    if not meta:
+        return
+
+    try:
+        resp = await client.post(
+            f"{get_settings().wp_url}/wp-json/rankmath/v1/updateMeta",
+            json={"objectType": "post", "objectID": post_id, "meta": meta},
+        )
+        if resp.status_code == 200:
+            logger.info("Rank Math SEO 메타 업데이트 완료: post_id=%d, keyword=%s", post_id, focus_keyword)
+        else:
+            logger.warning("Rank Math 업데이트 실패: status=%s, body=%s", resp.status_code, resp.text[:200])
+    except httpx.HTTPError as e:
+        logger.warning("Rank Math 요청 실패: %s", e)
+
+
 async def publish_to_wordpress(
     title: str,
     html: str,
@@ -111,6 +139,8 @@ async def publish_to_wordpress(
     excerpt: str = "",
     tags: list[str] | None = None,
     og_image: bytes | None = None,
+    focus_keyword: str = "",
+    seo_description: str = "",
 ) -> tuple[int, str] | None:
     """WordPress에 포스트를 발행하고 (post_id, post_link)를 반환한다.
 
@@ -172,6 +202,11 @@ async def publish_to_wordpress(
                 post_id = post["id"]
                 post_link = post.get("link", "")
                 logger.info("WordPress 발행 완료: id=%d, url=%s", post_id, post_link)
+
+                # Rank Math SEO 메타 업데이트
+                await _update_rankmath_meta(
+                    client, post_id, focus_keyword, seo_description or excerpt,
+                )
 
                 # Google Indexing API 자동 요청
                 if post_link:

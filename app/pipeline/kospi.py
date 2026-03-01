@@ -168,7 +168,7 @@ def summarize(data: CollectedData) -> BriefingResult:
     )
     title = seo.title or f"{date.today().strftime('%Y년 %m월 %d일')} 국내주식 마감 브리핑"
     logger.info("요약 완료: %s", title)
-    return BriefingResult(title=title, html=seo.html, slug=seo.slug, excerpt=seo.excerpt, tags=seo.tags)
+    return BriefingResult(title=title, html=seo.html, slug=seo.slug, excerpt=seo.excerpt, tags=seo.tags, focus_keyword=seo.focus_keyword)
 
 
 # ── KOSPI 스텝 함수 ──
