@@ -13,3 +13,6 @@ server.log
 test_send.py
 docs/private/
 service-account.json
+.server.pid
+*.zip
+data/chroma/

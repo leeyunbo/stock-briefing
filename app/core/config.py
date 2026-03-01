@@ -1,11 +1,6 @@
-"""애플리케이션 설정 - pydantic-settings로 환경변수를 타입 안전하게 관리한다.
+"""애플리케이션 설정 — pydantic-settings로 환경변수를 타입 안전하게 관리한다."""
 
-스프링의 @ConfigurationProperties + @Validated 와 동일한 역할:
-- 환경변수 → 필드 자동 바인딩 (스프링의 relaxed binding과 유사)
-- 기본값 없는 필드 = 필수값 → 앱 시작 시 ValidationError (스프링의 @NotNull)
-- Literal 타입 = 허용값 제한 (스프링의 @Pattern 또는 enum 바인딩)
-"""
-
+from functools import lru_cache
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -31,7 +26,7 @@ class Settings(BaseSettings):
 
     # SMTP
     smtp_host: str = "smtp.gmail.com"
-    smtp_port: int = 587  # str→int 자동 변환 (스프링의 @Value 타입 변환)
+    smtp_port: int = 587
     smtp_user: str
     smtp_password: str
 
@@ -50,15 +45,24 @@ class Settings(BaseSettings):
     # 청약Home API (공공데이터포털)
     applyhome_api_key: str = ""
 
+    # News dedup
+    news_dedup_threshold: float = 0.92
+    news_dedup_ttl_days: int = 7
+
     # HTTP
     api_timeout: int = 15
 
     # Pagination
     archive_page_size: int = 10
 
+    # OG Image
+    og_font_path: str = "/System/Library/Fonts/AppleSDGothicNeo.ttc"
+
     # Database
     database_url: str = "sqlite+aiosqlite:///briefing.db"
 
 
-# 싱글턴 인스턴스 — 스프링의 @Bean과 유사
-settings = Settings()
+@lru_cache
+def get_settings() -> Settings:
+    """Settings 인스턴스를 반환한다 (테스트에서 cache_clear로 재생성 가능)."""
+    return Settings()
