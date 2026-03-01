@@ -56,7 +56,8 @@ async def dedup_real_estate_news(ctx: RealEstateContext) -> None:
     from app.collector.dedup import dedup_news
     ctx["news"] = dedup_news(
         ctx["news"], lambda n: f"{n.title} {n.summary}",
-        "real_estate_news", run_id=ctx["run_id"], pipeline="real_estate",
+        "real_estate_news", threshold=0.85,
+        run_id=ctx["run_id"], pipeline="real_estate",
     )
     if not ctx["news"] and not ctx["subscriptions"]:
         logger.info("새로운 뉴스/청약 없음 — 파이프라인 스킵")

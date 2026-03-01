@@ -44,17 +44,24 @@ async def scan_market() -> MarketScanData:
     from app.core.http import get_http_client
     client = get_http_client()
 
-    news, earnings, stocks = await asyncio.gather(
+    news, naver_news, earnings, stocks = await asyncio.gather(
         _scan_market_news(client),
+        _scan_naver_global_news(),
         _scan_earnings_calendar(client),
         _scan_stock_quotes(client),
         return_exceptions=True,
     )
 
+    combined_news: list[MarketNewsItem] = []
     if not isinstance(news, BaseException):
-        scan.market_news = news
+        combined_news.extend(news)
     else:
         logger.error("마켓 뉴스 스캔 실패: %s", news)
+    if not isinstance(naver_news, BaseException):
+        combined_news.extend(naver_news)
+    else:
+        logger.warning("네이버 글로벌 뉴스 수집 실패: %s", naver_news)
+    scan.market_news = combined_news
 
     if not isinstance(earnings, BaseException):
         today = datetime.now().strftime("%Y-%m-%d")
@@ -84,6 +91,42 @@ async def scan_market() -> MarketScanData:
         len(scan.market_news), len(scan.earnings_today) + len(scan.earnings_tomorrow),
     )
     return scan
+
+
+_GLOBAL_NEWS_KEYWORDS = [
+    "세계경제",
+    "국제정세",
+    "미국 증시",
+    "글로벌 시장",
+]
+
+
+async def _scan_naver_global_news() -> list[MarketNewsItem]:
+    """네이버 뉴스에서 글로벌/지정학 뉴스를 수집한다."""
+    from app.collector.news import fetch_news
+
+    tasks = [fetch_news(query=kw, count=5) for kw in _GLOBAL_NEWS_KEYWORDS]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    seen_links: set[str] = set()
+    items: list[MarketNewsItem] = []
+
+    for result in results:
+        if isinstance(result, Exception):
+            logger.warning("네이버 글로벌 뉴스 에러: %s", result)
+            continue
+        for article in result:
+            if article.link not in seen_links:
+                seen_links.add(article.link)
+                items.append(MarketNewsItem(
+                    headline=article.title,
+                    summary=article.description[:300],
+                    source="naver",
+                    url=article.link,
+                ))
+
+    logger.info("네이버 글로벌 뉴스 %d건 수집", len(items))
+    return items[:15]
 
 
 async def _scan_market_news(client: httpx.AsyncClient) -> list[MarketNewsItem]:

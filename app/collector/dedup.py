@@ -170,6 +170,7 @@ def dedup_news(
     text_fn: Callable[[T], str],
     collection_name: str,
     *,
+    threshold: float | None = None,
     run_id: str = "",
     pipeline: str = "",
 ) -> list[T]:
@@ -182,7 +183,7 @@ def dedup_news(
 
     try:
         dedup = NewsDedup(collection_name=collection_name)
-        items = dedup.filter_unseen(items, text_fn)
+        items = dedup.filter_unseen(items, text_fn, threshold=threshold)
         last_filtered = dedup.last_filtered
     except Exception:
         logger.warning("뉴스 중복 제거 실패, 원본 사용", exc_info=True)
