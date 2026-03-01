@@ -1,23 +1,26 @@
-"""국내주식 브리핑 파이프라인 — 각 단계가 독립 함수, 데이터 클래스로 연결.
+"""국내주식 브리핑 파이프라인 — 각 단계가 독립 함수, 데이터 클래스로 연결."""
 
-스프링의 서비스 레이어 분리와 동일:
-- collect_data()  → CollectorService
-- summarize()     → SummarizerService
-- save_briefing() → BriefingRepository
-- send_emails()   → EmailService
-- run_pipeline()  → Orchestrator (각 서비스를 순서대로 호출)
-"""
+from __future__ import annotations
 
 import asyncio
 import logging
+from asyncio import to_thread
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from app.collector.dart import Disclosure, fetch_disclosures
 from app.collector.market import MarketSummary, fetch_market_summary
 from app.collector.news import NewsArticle, fetch_news_for_stocks, fetch_stock_news
-from app.pipeline.base import BriefingResult, save_briefing, send_emails
+from app.collector.snapshot import (
+    save_kospi_snapshot,
+    fetch_index_history,
+    fetch_latest_nasdaq,
+)
+from app.core.models import IndexSnapshot
+from app.core.models import BriefingType
+from app.pipeline.base import BriefingResult, PipelineContext, deliver, run_steps
 from app.summarizer import generate_briefing
+from app.tracing import generate_run_id
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +32,8 @@ _DISCLOSURE_KEYWORDS = [
     "자본감소", "해산", "상장폐지", "횡령", "배임",
 ]
 
+_DISCLOSURE_FALLBACK_COUNT = 5
+
 
 def _filter_disclosures(disclosures: list[Disclosure]) -> list[Disclosure]:
     """개인투자자 관련 키워드가 포함된 공시만 필터링한다."""
@@ -38,10 +43,10 @@ def _filter_disclosures(disclosures: list[Disclosure]) -> list[Disclosure]:
         d for d in disclosures
         if any(kw in d.report_nm for kw in _DISCLOSURE_KEYWORDS)
     ]
-    return filtered if filtered else disclosures[:5]
+    return filtered if filtered else disclosures[:_DISCLOSURE_FALLBACK_COUNT]
 
 
-# ── 단계 간 전달 데이터 (스프링의 서비스 간 DTO) ──
+# ── 단계 간 전달 데이터 ──
 
 
 @dataclass
@@ -53,6 +58,14 @@ class CollectedData:
     news: list[NewsArticle]
     stock_news: dict[str, list[NewsArticle]] = field(default_factory=dict)
     is_market_closed: bool = False
+    index_history: list[IndexSnapshot] = field(default_factory=list)
+    nasdaq_overnight: list[IndexSnapshot] = field(default_factory=list)
+
+
+class KospiContext(PipelineContext, total=False):
+    """KOSPI 파이프라인 컨텍스트."""
+
+    collected: CollectedData
 
 
 # ── 파이프라인 단계 (각각 독립 함수) ──
@@ -69,17 +82,31 @@ def _is_market_closed_yesterday(market_date_str: str) -> bool:
 
 async def collect_data() -> CollectedData:
     """1단계: 시장/공시/뉴스 데이터를 병렬 수집한다."""
-    # 먼저 시장 데이터를 수집해 휴장 여부를 판단
     try:
         market = await fetch_market_summary()
     except Exception as e:
         logger.error("시장 데이터 수집 실패: %s", e)
         market = MarketSummary()
 
+    try:
+        await save_kospi_snapshot(market)
+    except Exception as e:
+        logger.warning("KOSPI 스냅샷 저장 실패 (무시): %s", e)
+
+    index_history: list[IndexSnapshot] = []
+    nasdaq_overnight: list[IndexSnapshot] = []
+    try:
+        index_history = await fetch_index_history(["kospi", "kosdaq"])
+    except Exception as e:
+        logger.warning("과거 추이 조회 실패 (무시): %s", e)
+    try:
+        nasdaq_overnight = await fetch_latest_nasdaq()
+    except Exception as e:
+        logger.warning("전일 나스닥 조회 실패 (무시): %s", e)
+
     is_closed = _is_market_closed_yesterday(market.date)
 
     if is_closed:
-        # 휴장: 일반 뉴스만 수집
         logger.info("전일 휴장 감지 (market.date=%s) — 뉴스만 수집", market.date)
         try:
             news = await fetch_stock_news()
@@ -91,9 +118,10 @@ async def collect_data() -> CollectedData:
             disclosures=[],
             news=news,
             is_market_closed=True,
+            index_history=index_history,
+            nasdaq_overnight=nasdaq_overnight,
         )
 
-    # 정상 거래일: 공시/뉴스 병렬 수집
     results = await asyncio.gather(
         fetch_disclosures(),
         fetch_stock_news(),
@@ -110,7 +138,6 @@ async def collect_data() -> CollectedData:
     disclosures = _filter_disclosures(disclosures)
     logger.info("수집 완료: 공시 %d건, 뉴스 %d건", len(disclosures), len(news))
 
-    # 등락률 큰 종목 뉴스 추가 수집 (상위 5종목 제한)
     movers = sorted(
         [s for s in market.kospi_top10
          if abs(float(s.change_pct.replace(",", "") or "0")) >= 2.0],
@@ -126,50 +153,60 @@ async def collect_data() -> CollectedData:
         disclosures=disclosures,
         news=news,
         stock_news=stock_news,
+        index_history=index_history,
+        nasdaq_overnight=nasdaq_overnight,
     )
 
 
 def summarize(data: CollectedData) -> BriefingResult:
     """2단계: 수집 데이터를 AI로 요약한다."""
-    html, seo_title, slug, excerpt, tags = generate_briefing(
+    seo = generate_briefing(
         data.market, data.disclosures, data.news, data.stock_news,
         is_market_closed=data.is_market_closed,
+        index_history=data.index_history,
+        nasdaq_overnight=data.nasdaq_overnight,
     )
-    title = seo_title or f"{date.today().strftime('%Y년 %m월 %d일')} 국내주식 마감 브리핑"
+    title = seo.title or f"{date.today().strftime('%Y년 %m월 %d일')} 국내주식 마감 브리핑"
     logger.info("요약 완료: %s", title)
-    return BriefingResult(title=title, html=html, slug=slug, excerpt=excerpt, tags=tags)
+    return BriefingResult(title=title, html=seo.html, slug=seo.slug, excerpt=seo.excerpt, tags=seo.tags)
+
+
+# ── KOSPI 스텝 함수 ──
+
+
+async def collect_kospi_data(ctx: KospiContext) -> None:
+    """시장/공시/뉴스 데이터를 수집한다."""
+    ctx["collected"] = await collect_data()
+
+
+async def summarize_kospi(ctx: KospiContext) -> None:
+    """수집 데이터를 AI로 요약한다."""
+    ctx["result"] = await to_thread(summarize, ctx["collected"])
+
+
+KOSPI_STEPS = [
+    collect_kospi_data,
+    summarize_kospi,
+    deliver,
+]
 
 
 # ── 오케스트레이터 ──
 
 
 async def run_pipeline(email_to: list[str] | None = None) -> str:
-    """전체 파이프라인: 수집 → 요약 → 저장 → 발송.
+    """전체 파이프라인: 수집 → 요약 → 저장 → 발송 — 스텝 기반.
 
     Args:
         email_to: 발송 대상. None=전체 구독자, []=발송 안 함, ["a@b.com"]=특정 주소.
     """
     logger.info("브리핑 파이프라인 시작: %s", date.today())
-
-    data = await collect_data()
-    result = summarize(data)
-    await save_briefing(result)
-
-    from app.publishing.og_image import generate_og_image
-    from app.publishing.wordpress import publish_to_wordpress
-    og_image = generate_og_image(result.title, "국내주식")
-    await publish_to_wordpress(
-        result.title, result.html, "kospi_briefing",
-        slug=result.slug, excerpt=result.excerpt, tags=result.tags,
-        og_image=og_image,
-    )
-
-    if email_to is None:
-        await send_emails(result)
-    elif email_to:
-        from app.publishing.email_sender import send_briefing_to_subscribers
-        from app.publishing.email_template import render_email
-        email_html = render_email(result.title, result.html)
-        await send_briefing_to_subscribers(email_to, result.title, email_html)
-
-    return result.html
+    ctx: KospiContext = {
+        "run_id": generate_run_id(),
+        "email_to": email_to,
+        "pipeline": "kospi",
+        "briefing_type": BriefingType.KOSPI,
+    }
+    await run_steps(KOSPI_STEPS, ctx)
+    result = ctx.get("result")
+    return result.html if result else ""
