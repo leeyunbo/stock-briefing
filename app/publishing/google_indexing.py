@@ -10,7 +10,7 @@ import httpx
 from google.auth.transport.requests import Request
 from google.oauth2 import service_account
 
-from app.core.config import settings
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +24,13 @@ async def request_indexing(url: str) -> bool:
     서비스 계정이 설정되지 않으면 건너뛴다.
     실패해도 파이프라인은 중단하지 않는다.
     """
-    if not settings.google_service_account_json:
+    if not get_settings().google_service_account_json:
         logger.info("Google 서비스 계정 미설정 — 인덱싱 요청 건너뜀")
         return False
 
     try:
         credentials = service_account.Credentials.from_service_account_file(
-            settings.google_service_account_json,
+            get_settings().google_service_account_json,
             scopes=_SCOPES,
         )
         credentials.refresh(Request())

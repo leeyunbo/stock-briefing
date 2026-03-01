@@ -6,44 +6,54 @@
 </head>
 <body style="margin: 0; padding: 0; background-color: #F4F5F7; -webkit-text-size-adjust: 100%;">
 <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #F4F5F7; font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;">
-<tr><td align="center" style="padding: 24px 16px;">
+<tr><td align="center" style="padding: 32px 16px;">
 
 <!-- Main Card -->
-<table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #111113; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06);">
+<table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
 
-    <!-- Header -->
+    <!-- Logo -->
+    <tr>
+        <td style="padding: 28px 32px 0 32px;">
+            <table cellpadding="0" cellspacing="0" border="0"><tr>
+                <td style="width: 8px; height: 8px; background-color: #3182F6; border-radius: 50%;"></td>
+                <td style="padding-left: 8px; font-size: 14px; font-weight: 700; color: #3182F6; letter-spacing: -0.3px;">Moneydive</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <!-- Hero -->
     <tr>
         <td style="padding: 32px 32px 0 32px;">
-            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background: linear-gradient(135deg, #3182F6, #1B64DA); border-radius: 16px; overflow: hidden;">
                 <tr>
-                    <td style="padding-bottom: 10px;">
-                        <table cellpadding="0" cellspacing="0" border="0"><tr>
-                            <td style="width: 8px; height: 8px; background-color: #3182F6; border-radius: 50%;"></td>
-                            <td style="padding-left: 8px; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.4); letter-spacing: -0.3px;">Stock Briefing</td>
-                        </tr></table>
+                    <td align="center" style="padding: 48px 32px;">
+                        {% if category %}
+                        <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7); letter-spacing: -0.2px;">{{ category }}</p>
+                        {% endif %}
+                        <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #FFFFFF; line-height: 1.4; letter-spacing: -0.8px;">{{ title }}</h1>
                     </td>
-                </tr>
-                <tr>
-                    <td style="font-size: 22px; font-weight: 800; color: #FFFFFF; line-height: 1.35; padding-bottom: 6px; letter-spacing: -0.8px;">
-                        {{ title }}
-                    </td>
-                </tr>
-                <tr>
-                    <td style="font-size: 13px; color: rgba(255,255,255,0.3); padding-bottom: 24px; letter-spacing: -0.2px;">
-                        AI가 정리한 오늘의 시장 요약
-                    </td>
-                </tr>
-                <tr>
-                    <td style="border-bottom: 1px solid rgba(255,255,255,0.06);"></td>
                 </tr>
             </table>
         </td>
     </tr>
 
-    <!-- Content -->
+    <!-- Excerpt + CTA -->
     <tr>
-        <td style="padding: 8px 32px 32px 32px; color: rgba(255,255,255,0.75); font-size: 14px; line-height: 1.75;">
-            {{ content_html }}
+        <td align="center" style="padding: 32px 40px 12px 40px;">
+            <p style="margin: 0; font-size: 15px; line-height: 1.7; color: #4E5968; letter-spacing: -0.3px;">{{ excerpt }}</p>
+        </td>
+    </tr>
+
+    <!-- CTA Button -->
+    <tr>
+        <td align="center" style="padding: 16px 32px 40px 32px;">
+            <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                    <td align="center" style="background-color: #3182F6; border-radius: 12px;">
+                        <a href="{{ blog_url }}" target="_blank" style="display: inline-block; padding: 14px 40px; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; letter-spacing: -0.3px;">자세히 보기</a>
+                    </td>
+                </tr>
+            </table>
         </td>
     </tr>
 
@@ -54,22 +64,12 @@
 <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; margin-top: 20px;">
     <tr>
         <td align="center" style="padding: 8px 0;">
-            <span style="font-size: 11px; color: #8B95A1;">Stock Briefing &middot; AI 주식 아침 브리핑</span>
+            <span style="font-size: 11px; color: #8B95A1;">Moneydive &middot; AI 주식 브리핑</span>
         </td>
     </tr>
     <tr>
         <td align="center" style="padding: 0 0 4px 0;">
-            <span style="font-size: 11px; color: #B0B8C1;">본 브리핑은 투자 권유가 아닌 정보 제공 목적으로, AI가 공개된 뉴스를 바탕으로 자동 생성한 콘텐츠입니다.</span>
-        </td>
-    </tr>
-    <tr>
-        <td align="center" style="padding: 0 0 4px 0;">
-            <span style="font-size: 11px; color: #B0B8C1;">콘텐츠의 정확성·완전성을 보장하지 않으며, 투자 판단은 반드시 본인 책임 하에 해주세요.</span>
-        </td>
-    </tr>
-    <tr>
-        <td align="center" style="padding: 0 0 8px 0;">
-            <span style="font-size: 11px; color: #B0B8C1;">구독을 원하지 않으시면 이 이메일에 답장해주세요</span>
+            <span style="font-size: 11px; color: #B0B8C1;">AI가 공개 뉴스를 바탕으로 자동 생성한 콘텐츠이며, 투자 권유가 아닙니다.</span>
         </td>
     </tr>
 </table>

@@ -1,10 +1,4 @@
-"""SMTP 이메일 발송기 — async + 재시도.
-
-스프링 대응:
-- asyncio.to_thread() = @Async (동기 코드를 별도 스레드에서 실행)
-- tenacity.retry = @Retryable (자동 재시도 + 지수 백오프)
-- asyncio.gather() = CompletableFuture.allOf() (동시 발송)
-"""
+"""SMTP 이메일 발송기 — async + 재시도."""
 
 import asyncio
 import logging
@@ -14,7 +8,7 @@ from email.mime.text import MIMEText
 
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-from app.core.config import settings
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +16,7 @@ logger = logging.getLogger(__name__)
 def _build_message(to_email: str, subject: str, html_body: str) -> MIMEMultipart:
     """이메일 MIME 메시지를 조립한다."""
     msg = MIMEMultipart("alternative")
-    msg["From"] = settings.smtp_user
+    msg["From"] = get_settings().smtp_user
     msg["To"] = to_email
     msg["Subject"] = subject
     msg.attach(MIMEText(html_body, "html", "utf-8"))
@@ -32,14 +26,14 @@ def _build_message(to_email: str, subject: str, html_body: str) -> MIMEMultipart
 def _send_smtp(to_email: str, subject: str, html_body: str) -> None:
     """동기 SMTP 발송 (스레드풀에서 실행될 함수)."""
     msg = _build_message(to_email, subject, html_body)
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+    with smtplib.SMTP(get_settings().smtp_host, get_settings().smtp_port) as server:
         server.starttls()
         try:
-            server.login(settings.smtp_user, settings.smtp_password)
+            server.login(get_settings().smtp_user, get_settings().smtp_password)
         except smtplib.SMTPAuthenticationError:
-            logger.error("SMTP 인증 실패 (user=%s)", settings.smtp_user)
+            logger.error("SMTP 인증 실패 (user=%s)", get_settings().smtp_user)
             raise
-        server.sendmail(settings.smtp_user, to_email, msg.as_string())
+        server.sendmail(get_settings().smtp_user, to_email, msg.as_string())
 
 
 @retry(

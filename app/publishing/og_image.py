@@ -10,6 +10,9 @@ from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont
 
+from app.core.config import get_settings
+from app.core.models import BriefingType
+
 logger = logging.getLogger(__name__)
 
 # 카테고리별 포인트 컬러
@@ -20,15 +23,13 @@ _CATEGORY_COLORS: dict[str, str] = {
     "뉴스 딥다이브": "#9b59b6",
 }
 
-# briefing_type → 카테고리 표시명
+# BriefingType → 카테고리 표시명
 CATEGORY_DISPLAY: dict[str, str] = {
-    "kospi_briefing": "국내주식",
-    "nasdaq_briefing": "미국주식",
-    "news_dive": "뉴스 딥다이브",
-    "real_estate_briefing": "부동산",
+    BriefingType.KOSPI: "국내주식",
+    BriefingType.NASDAQ: "미국주식",
+    BriefingType.NEWS_DIVE: "뉴스 딥다이브",
+    BriefingType.REAL_ESTATE: "부동산",
 }
-
-_FONT_PATH = "/System/Library/Fonts/AppleSDGothicNeo.ttc"
 _BG_COLOR = "#1a1a2e"
 _WIDTH = 1200
 _HEIGHT = 630
@@ -36,10 +37,11 @@ _HEIGHT = 630
 
 def _load_font(size: int, index: int = 0) -> ImageFont.FreeTypeFont:
     """시스템 한글 폰트를 로드한다."""
+    font_path = get_settings().og_font_path
     try:
-        return ImageFont.truetype(_FONT_PATH, size, index=index)
+        return ImageFont.truetype(font_path, size, index=index)
     except OSError:
-        logger.warning("한글 폰트 로드 실패: %s — 기본 폰트 사용", _FONT_PATH)
+        logger.warning("한글 폰트 로드 실패: %s — 기본 폰트 사용", font_path)
         return ImageFont.load_default()
 
 

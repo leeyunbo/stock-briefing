@@ -1,12 +1,9 @@
-"""이메일 템플릿 렌더링 — 스프링의 Thymeleaf 서비스 역할.
+"""이메일 템플릿 렌더링 — 티저 스타일.
 
-관심사 분리:
-- templates/email_briefing.html → HTML 구조 (디자이너 영역)
-- 이 모듈 → 스타일링 + 렌더링 로직 (개발자 영역)
-- scheduler.py → 비즈니스 로직만 남음
+블로그 링크로 유도하는 간결한 이메일을 생성한다.
+전체 본문은 블로그에서 확인하도록 CTA 버튼을 포함한다.
 """
 
-import re
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
@@ -15,54 +12,12 @@ _TEMPLATE_DIR = Path(__file__).resolve().parent.parent.parent / "templates"
 _env = Environment(loader=FileSystemLoader(_TEMPLATE_DIR), autoescape=False)
 
 
-def render_email(title: str, content_html: str) -> str:
-    """브리핑 HTML을 다크 테마 이메일 템플릿으로 렌더링한다."""
-    styled = _style_content_html(content_html)
+def render_email(title: str, excerpt: str, blog_url: str, category: str = "") -> str:
+    """티저 스타일 이메일을 렌더링한다."""
     template = _env.get_template("email_briefing.html")
-    return template.render(title=title, content_html=styled)
-
-
-def _style_content_html(html: str) -> str:
-    """AI가 생성한 HTML에 다크 테마 인라인 스타일을 자동 적용한다."""
-    # 데이터 테이블 스타일링 (h2 변환보다 먼저 — AI가 생성한 원본 table만 매칭)
-    html = re.sub(
-        r'<table(?:\s[^>]*)?>',
-        '<table style="width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px;">',
-        html,
+    return template.render(
+        title=title,
+        excerpt=excerpt,
+        blog_url=blog_url,
+        category=category,
     )
-    html = re.sub(
-        r'<th(?:\s[^>]*)?>',
-        '<th style="color: #FFFFFF; font-weight: 700; text-align: left; padding: 10px 12px; border-bottom: 2px solid rgba(255,255,255,0.15);">',
-        html,
-    )
-    html = re.sub(
-        r'<td(?:\s[^>]*)?>',
-        '<td style="color: rgba(255,255,255,0.75); padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.08);">',
-        html,
-    )
-    # <h2> → 섹션 헤더 (왼쪽 파란 바 + 흰 볼드) — 테이블 스타일링 이후에 삽입하므로 충돌 없음
-    html = re.sub(
-        r'<h2>(.*?)</h2>',
-        r'<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top: 28px; margin-bottom: 14px;">'
-        r'<tr><td style="width: 4px; background-color: #3182F6; border-radius: 2px;"></td>'
-        r'<td style="padding-left: 12px; font-size: 17px; font-weight: 700; color: #FFFFFF; line-height: 1.4;">\1</td>'
-        r'</tr></table>',
-        html,
-    )
-    # <ul> → 리스트 컨테이너
-    html = html.replace('<ul>', '<ul style="list-style: none; padding: 0; margin: 0 0 8px 0;">')
-    # <li> → 리스트 아이템 (다크 카드)
-    html = re.sub(
-        r'<li(?:\s[^>]*)?>',
-        '<li style="background-color: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; font-size: 14px; line-height: 1.75; color: rgba(255,255,255,0.75);">',
-        html,
-    )
-    # <strong> → 흰색 볼드
-    html = html.replace('<strong>', '<strong style="color: #FFFFFF; font-weight: 700;">')
-    # <p> → 본문 텍스트
-    html = re.sub(
-        r'<p(?:\s[^>]*)?>',
-        '<p style="font-size: 14px; line-height: 1.75; color: rgba(255,255,255,0.65); margin: 0 0 12px 0;">',
-        html,
-    )
-    return html

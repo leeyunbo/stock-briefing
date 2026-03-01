@@ -9,24 +9,27 @@ import re
 
 import httpx
 
-from app.core.config import settings
+from app.core.config import get_settings
+from app.core.models import BriefingType
 
 logger = logging.getLogger(__name__)
 
-# briefing_type → WordPress category slug 매핑
+# BriefingType → WordPress category slug 매핑
 CATEGORY_SLUG_MAP: dict[str, str] = {
-    "nasdaq_briefing": "us-stocks",
-    "news_dive": "market",
-    "kospi_briefing": "kr-stocks",
-    "real_estate_briefing": "real-estate",
+    BriefingType.NASDAQ: "us-stocks",
+    BriefingType.NEWS_DIVE: "market",
+    BriefingType.KOSPI: "kr-stocks",
+    BriefingType.REAL_ESTATE: "real-estate",
 }
 
 
 def _slugify(title: str) -> str:
-    """제목에서 안전한 파일명을 생성한다."""
+    """제목에서 ASCII-safe 파일명을 생성한다."""
+    from urllib.parse import quote
     slug = re.sub(r"[^\w가-힣]", "-", title)
     slug = re.sub(r"-+", "-", slug).strip("-")
-    return slug[:80] if slug else "og-image"
+    slug = slug[:80] if slug else "og-image"
+    return quote(slug, safe="-_")
 
 
 async def _upload_media(
@@ -36,7 +39,7 @@ async def _upload_media(
 ) -> int | None:
     """WordPress에 이미지를 업로드하고 media_id를 반환한다."""
     resp = await client.post(
-        f"{settings.wp_url}/wp-json/wp/v2/media",
+        f"{get_settings().wp_url}/wp-json/wp/v2/media",
         content=image_bytes,
         headers={
             "Content-Type": "image/png",
@@ -59,7 +62,7 @@ async def _upload_media(
 async def _resolve_category_id(client: httpx.AsyncClient, slug: str) -> int | None:
     """카테고리 slug → ID를 조회한다."""
     resp = await client.get(
-        f"{settings.wp_url}/wp-json/wp/v2/categories",
+        f"{get_settings().wp_url}/wp-json/wp/v2/categories",
         params={"slug": slug},
     )
     if resp.status_code == 200:
@@ -76,7 +79,7 @@ async def _resolve_tag_ids(client: httpx.AsyncClient, tags: list[str]) -> list[i
     for name in tags:
         # GET 검색
         resp = await client.get(
-            f"{settings.wp_url}/wp-json/wp/v2/tags",
+            f"{get_settings().wp_url}/wp-json/wp/v2/tags",
             params={"search": name, "per_page": 5},
         )
         if resp.status_code == 200:
@@ -89,7 +92,7 @@ async def _resolve_tag_ids(client: httpx.AsyncClient, tags: list[str]) -> list[i
 
         # POST 생성
         resp = await client.post(
-            f"{settings.wp_url}/wp-json/wp/v2/tags",
+            f"{get_settings().wp_url}/wp-json/wp/v2/tags",
             json={"name": name},
         )
         if resp.status_code == 201:
@@ -108,18 +111,18 @@ async def publish_to_wordpress(
     excerpt: str = "",
     tags: list[str] | None = None,
     og_image: bytes | None = None,
-) -> int | None:
-    """WordPress에 포스트를 발행하고 post ID를 반환한다.
+) -> tuple[int, str] | None:
+    """WordPress에 포스트를 발행하고 (post_id, post_link)를 반환한다.
 
     wp_url이 설정되어 있지 않으면 건너뛴다 (개발 환경 등).
     실패 시 None을 반환하되 파이프라인은 중단하지 않는다.
     """
-    if not settings.wp_url or not settings.wp_user or not settings.wp_app_password:
+    if not get_settings().wp_url or not get_settings().wp_user or not get_settings().wp_app_password:
         logger.info("WordPress 설정 미완료 — 발행 건너뜀")
         return None
 
     # Basic Auth 헤더 구성
-    credentials = f"{settings.wp_user}:{settings.wp_app_password}"
+    credentials = f"{get_settings().wp_user}:{get_settings().wp_app_password}"
     token = base64.b64encode(credentials.encode()).decode()
     headers = {"Authorization": f"Basic {token}"}
 
@@ -160,7 +163,7 @@ async def publish_to_wordpress(
                 payload["tags"] = tag_ids
 
             resp = await client.post(
-                f"{settings.wp_url}/wp-json/wp/v2/posts",
+                f"{get_settings().wp_url}/wp-json/wp/v2/posts",
                 json=payload,
             )
 
@@ -175,7 +178,7 @@ async def publish_to_wordpress(
                     from app.publishing.google_indexing import request_indexing
                     await request_indexing(post_link)
 
-                return post_id
+                return post_id, post_link
 
             logger.error(
                 "WordPress 발행 실패: status=%s, body=%s",
