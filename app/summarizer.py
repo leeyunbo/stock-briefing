@@ -1,69 +1,84 @@
-"""AI 브리핑 요약 생성 — Protocol + Strategy 패턴.
-
-스프링의 Interface + @Qualifier 패턴과 대응:
-- Protocol = interface (구조적 타이핑 — implements 선언 불필요)
-- ClaudeProvider / GeminiProvider / ClaudeCliProvider = 구현체
-- get_provider() = @Qualifier 또는 @ConditionalOnProperty 팩토리
-"""
+"""AI 브리핑 요약 생성 — Protocol + Strategy 패턴."""
 
 import json
 import logging
 import os
 import re
 import subprocess
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from app.collector.dart import Disclosure
 from app.collector.market import MarketSummary
 from app.collector.news import NewsArticle
-from app.core.config import settings
+from app.core.config import get_settings
+from app.core.models import IndexSnapshot
 
 logger = logging.getLogger(__name__)
 
 
-# ── Protocol 정의 (스프링의 interface AiProvider) ──
-
-
 class AiProvider(Protocol):
-    """AI 제공자 인터페이스.
-
-    자바와 달리 implements 선언이 필요 없다.
-    call() 메서드 시그니처만 맞으면 AiProvider로 인정된다 (덕 타이핑).
-    """
+    """AI 제공자 인터페이스 (구조적 타이핑)."""
 
     def call(self, system_prompt: str, user_prompt: str) -> str: ...
 
 
-# ── 구현체 (스프링의 @Service + implements AiProvider) ──
+@dataclass(frozen=True)
+class SeoMetadata:
+    """SEO 메타데이터 파싱 결과."""
+
+    html: str
+    title: str = ""
+    slug: str = ""
+    excerpt: str = ""
+    tags: list[str] = field(default_factory=list)
 
 
 class ClaudeProvider:
     """Claude API 구현체."""
 
+    def __init__(self):
+        self.last_usage: dict | None = None
+
     def call(self, system_prompt: str, user_prompt: str) -> str:
         import anthropic
 
-        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        s = get_settings()
+        client = anthropic.Anthropic(api_key=s.anthropic_api_key)
         message = client.messages.create(
-            model=settings.claude_model,
-            max_tokens=3000,
+            model=s.claude_model,
+            max_tokens=8000,
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
         )
+        self.last_usage = {
+            "input_tokens": message.usage.input_tokens,
+            "output_tokens": message.usage.output_tokens,
+        }
         return message.content[0].text
 
 
 class GeminiProvider:
     """Gemini API 구현체."""
 
+    def __init__(self):
+        self.last_usage: dict | None = None
+
     def call(self, system_prompt: str, user_prompt: str) -> str:
         from google import genai
 
-        client = genai.Client(api_key=settings.gemini_api_key)
+        s = get_settings()
+        client = genai.Client(api_key=s.gemini_api_key)
         response = client.models.generate_content(
-            model=settings.gemini_model,
+            model=s.gemini_model,
             contents=f"{system_prompt}\n\n{user_prompt}",
         )
+        usage = getattr(response, "usage_metadata", None)
+        if usage:
+            self.last_usage = {
+                "input_tokens": getattr(usage, "prompt_token_count", None),
+                "output_tokens": getattr(usage, "candidates_token_count", None),
+            }
         return response.text
 
 
@@ -87,16 +102,45 @@ class ClaudeCliProvider:
         return result.stdout
 
 
-# ── 팩토리 함수 (스프링의 @ConditionalOnProperty) ──
+def get_provider(pipeline: str = "", stage: str = "", run_id: str = "") -> AiProvider:
+    """설정에 따라 AI 제공자를 반환한다.
+
+    pipeline/stage가 지정되면 TracingProvider로 감싸서 자동 추적한다.
+    """
+    s = get_settings()
+    if s.ai_provider == "gemini":
+        provider = GeminiProvider()
+        provider_name = "gemini"
+        model_name = s.gemini_model
+    elif s.ai_provider == "claude-cli":
+        provider = ClaudeCliProvider()
+        provider_name = "claude-cli"
+        model_name = "claude-cli"
+    else:
+        provider = ClaudeProvider()
+        provider_name = "claude"
+        model_name = s.claude_model
+
+    if pipeline:
+        from app.tracing import TracingProvider
+        return TracingProvider(provider, provider_name, model_name, pipeline, stage, run_id)
+
+    return provider
 
 
-def get_provider() -> AiProvider:
-    """설정에 따라 AI 제공자를 반환한다."""
-    if settings.ai_provider == "gemini":
-        return GeminiProvider()
-    if settings.ai_provider == "claude-cli":
-        return ClaudeCliProvider()
-    return ClaudeProvider()
+# ── 공통 글쓰기 규칙 ──
+
+
+WRITING_STYLE_RULES = """
+
+글쓰기 금지 패턴:
+- "라벨:" 뒤에 줄바꿈하고 불릿 리스트를 나열하는 패턴을 사용하지 마세요.
+  나쁜 예: "직접 영향 종목:\n- NVDA\n- AMD"
+  좋은 예: 자연스러운 문장으로 녹여내세요. "NVDA (엔비디아)와 AMD가 직접적인 영향을 받았어요."
+- "주목 포인트:", "핵심 요약:", "결론:" 같은 라벨 뒤에 바로 리스트를 쓰지 마세요.
+  문장형으로 자연스럽게 서술하세요.
+- 기계적인 나열(종목명 하나씩 줄바꿈)보다 흐름이 있는 문단형 서술을 사용하세요.
+"""
 
 
 # ── 시스템 프롬프트 ──
@@ -114,21 +158,27 @@ SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 뉴스레터 에디
 - 독자에게 말을 거는 듯한 톤 (예: "여기서 포인트는요", "한 줄로 정리하면요")
 
 작성 규칙:
-- HTML 형식 (이메일 발송용)
+- HTML 형식 (블로그 게시용)
 - 각 섹션은 <h2> 태그 (인라인 스타일은 넣지 마세요, 후처리에서 자동 적용됩니다)
 - 테이블보다는 리스트(<ul><li>) 선호, 읽기 편하게
-- 핵심만 간결하게, 한 섹션당 3~5문장 이내
-- "왜 중요한지" 맥락을 반드시 포함
-- 본문 맨 위에 날짜나 제목을 따로 쓰지 마세요. 이메일 헤더에 이미 있어요. 바로 첫 번째 섹션부터 시작하세요.
-- <h2>, <ul>, <li>, <strong>, <p>, <br> 등 기본 태그만 사용. <div>, <style>, CSS class 사용 금지.
+- 충분히 풍성하게 작성하세요. 블로그 글이므로 각 섹션당 5~10문장으로 깊이 있게 서술해주세요.
+- 단순 팩트 나열이 아니라, "왜 이런 일이 일어났는지", "이게 앞으로 어떤 의미인지" 맥락과 해석을 반드시 포함하세요.
+- 본문 맨 위에 날짜나 제목을 따로 쓰지 마세요. 바로 첫 번째 섹션부터 시작하세요.
+- <h2>, <h3>, <ul>, <li>, <strong>, <p>, <br> 등 기본 태그만 사용. <div>, <style>, CSS class 사용 금지.
 - 인라인 style 속성을 넣지 마세요. 스타일은 후처리에서 자동으로 적용됩니다.
 
 섹션 구성:
-1. 📊 어제 시장 어땠나요? - 코스피/코스닥 지수를 자연스러운 문장으로. 한 줄 요약 포함.
-2. 💰 외인/기관은 뭘 했나요? - 외국인·기관·개인 순매수/순매도 금액(억원)을 자연스럽게 요약. "외국인이 1,474억 사들였어요" 처럼 쉽게. 코스피/코스닥 차이도 언급.
-3. 🏢 대장주는요 - 코스피 시총 TOP10 등락률. ±2% 이상 움직인 종목은 뉴스 참고하여 이유를 친절하게 설명. 반드시 <li> 리스트가 아닌 <p> 문단형으로 작성하세요. 비슷한 흐름의 종목들을 묶어서 자연스러운 문장으로 서술해주세요. 종목명 하나하나 나열하지 마세요.
-4. 📋 눈여겨볼 공시 - 개인투자자에게 중요한 공시만 골라서, 왜 중요한지 쉽게 설명.
-5. 📰 오늘의 뉴스 - 주요 뉴스 3~5건.
+1. 📊 어제 시장 어땠나요? - 코스피/코스닥 지수를 자연스러운 문장으로. 단순 숫자가 아니라 "왜 올랐는지/빠졌는지" 배경까지 설명. 글로벌 시장 흐름과의 연결고리도 짚어주세요.
+2. 💰 외인/기관은 뭘 했나요? - 외국인·기관·개인 순매수/순매도 금액(억원)을 자연스럽게 요약. "외국인이 1,474억 사들였어요" 처럼 쉽게. 코스피/코스닥 차이도 언급. 이 자금 흐름이 시사하는 바를 해석해주세요.
+3. 🏢 대장주는요 - 코스피 시총 TOP10 등락률. ±2% 이상 움직인 종목은 뉴스 참고하여 이유를 친절하게 설명. 반드시 <li> 리스트가 아닌 <p> 문단형으로 작성하세요. 비슷한 흐름의 종목들을 묶어서 자연스러운 문장으로 서술해주세요. 종목명 하나하나 나열하지 마세요. 섹터별 흐름(반도체, 자동차, 바이오 등)을 읽어주세요.
+4. 📋 눈여겨볼 공시 - 개인투자자에게 중요한 공시만 골라서, 왜 중요한지 쉽게 설명. 해당 공시가 주가에 미칠 수 있는 영향도 한마디 덧붙여주세요.
+5. 📰 오늘의 뉴스 - 주요 뉴스 3~5건. 각 뉴스가 시장에 미치는 영향을 2~3문장으로 풀어주세요.
+6. 🔮 오늘 시장 전망 - 위 내용을 종합해서, 오늘 시장에서 주목할 포인트를 정리해주세요. 투자 권유가 아닌 관전 포인트 위주로.
+
+데이터 활용 규칙:
+- "최근 5일 지수 추이" 데이터가 제공됩니다. 이를 활용해 "3일 연속 상승", "이번 주 들어 반등" 등 추세 맥락을 자연스럽게 서술하세요.
+- 추이 데이터에 없는 기간(예: "올해 최고", "역대 최저")은 언급하지 마세요.
+- "전일 미국 시장" 데이터가 제공됩니다. 미국 시장의 흐름이 국내 시장에 미친 영향을 자연스럽게 연결해주세요.
 
 공시/뉴스 항목 포맷 (반드시 지켜주세요):
 각 <li> 안에서 제목과 내용을 <br> 태그로 줄바꿈하세요. 콜론(:)으로 이어붙이지 마세요.
@@ -154,39 +204,37 @@ excerpt: 100자 이내
 tags: 본문 핵심 키워드 3~5개 (한국어)
 """
 
-SYSTEM_PROMPT += SEO_INSTRUCTION
+SYSTEM_PROMPT += WRITING_STYLE_RULES + SEO_INSTRUCTION
 
 
-def extract_seo_metadata(raw: str) -> tuple[str, str, str, str, list[str]]:
-    """HTML 응답에서 SEO 메타데이터를 분리한다.
-
-    Returns:
-        (html, title, slug, excerpt, tags) — 파싱 실패 시 빈값 반환.
-    """
+def extract_seo_metadata(raw: str) -> SeoMetadata:
+    """HTML 응답에서 SEO 메타데이터를 분리한다."""
     marker = "<!-- SEO -->"
     idx = raw.find(marker)
     if idx == -1:
-        return raw, "", "", "", []
+        return SeoMetadata(html=raw)
 
     html = raw[:idx].strip()
     seo_part = raw[idx + len(marker):].strip()
 
     try:
-        # JSON 객체 추출
         json_match = re.search(r'\{[^}]+\}', seo_part)
         if not json_match:
-            return html, "", "", "", []
+            return SeoMetadata(html=html)
         data = json.loads(json_match.group())
-        title = data.get("title", "")
-        slug = data.get("slug", "")
-        excerpt = data.get("excerpt", "")
         tags = data.get("tags", [])
         if isinstance(tags, str):
             tags = [tags]
-        return html, title, slug, excerpt, tags
+        return SeoMetadata(
+            html=html,
+            title=data.get("title", ""),
+            slug=data.get("slug", ""),
+            excerpt=data.get("excerpt", ""),
+            tags=tags,
+        )
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning("SEO 메타데이터 파싱 실패: %s", e)
-        return html, "", "", "", []
+        return SeoMetadata(html=html)
 
 
 # ── 휴장일 하드코딩 HTML ──
@@ -205,16 +253,21 @@ def generate_briefing(
     stock_news: dict[str, list[NewsArticle]] | None = None,
     *,
     is_market_closed: bool = False,
-) -> tuple[str, str, str, str, list[str]]:
-    """수집된 데이터를 AI에게 보내 브리핑 HTML을 생성한다.
+    index_history: list[IndexSnapshot] | None = None,
+    nasdaq_overnight: list[IndexSnapshot] | None = None,
+) -> SeoMetadata:
+    """수집된 데이터를 AI에게 보내 브리핑 HTML을 생성한다."""
+    from app.tracing import generate_run_id
+    rid = generate_run_id()
 
-    Returns:
-        (html, title, slug, excerpt, tags)
-    """
     if is_market_closed:
-        return _build_closed_market_briefing(news), "", "", "", []
-    prompt = _build_prompt(market, disclosures, news, stock_news)
-    provider = get_provider()
+        return SeoMetadata(html=_build_closed_market_briefing(news, run_id=rid))
+    prompt = _build_prompt(
+        market, disclosures, news, stock_news,
+        index_history=index_history,
+        nasdaq_overnight=nasdaq_overnight,
+    )
+    provider = get_provider(pipeline="kospi", stage="summarize", run_id=rid)
     raw = provider.call(SYSTEM_PROMPT, prompt)
     raw = strip_code_block(raw)
     return extract_seo_metadata(raw)
@@ -223,7 +276,7 @@ def generate_briefing(
 # ── 내부 헬퍼 ──
 
 
-def _build_closed_market_briefing(news: list[NewsArticle]) -> str:
+def _build_closed_market_briefing(news: list[NewsArticle], run_id: str = "") -> str:
     """휴장일 브리핑: 인사말은 하드코딩, 뉴스만 LLM 요약."""
     if not news:
         return f"{_CLOSED_GREETING}\n{_CLOSED_NO_NEWS}"
@@ -233,7 +286,7 @@ def _build_closed_market_briefing(news: list[NewsArticle]) -> str:
         desc = n.description[:150]
         parts.append(f"- {n.title}: {desc}")
 
-    provider = get_provider()
+    provider = get_provider(pipeline="kospi", stage="closed_market_summarize", run_id=run_id)
     raw = provider.call(SYSTEM_PROMPT, "\n".join(parts))
     news_html = strip_code_block(raw)
     return f"{_CLOSED_GREETING}\n{news_html}"
@@ -254,9 +307,34 @@ def _build_prompt(
     disclosures: list[Disclosure],
     news: list[NewsArticle],
     stock_news: dict[str, list[NewsArticle]] | None = None,
+    *,
+    index_history: list[IndexSnapshot] | None = None,
+    nasdaq_overnight: list[IndexSnapshot] | None = None,
 ) -> str:
     """수집 데이터를 프롬프트 텍스트로 변환한다."""
     parts = [f"## 날짜: {market.date or '알 수 없음'}\n"]
+
+    # 과거 지수 추이
+    if index_history:
+        parts.append("## 최근 5일 지수 추이")
+        by_date: dict[str, list[IndexSnapshot]] = {}
+        for snap in index_history:
+            d = snap.date.isoformat()
+            by_date.setdefault(d, []).append(snap)
+        for d in sorted(by_date, reverse=True):
+            items = ", ".join(
+                f"{s.index_name} {s.close} ({s.direction} {s.change_pct}%)"
+                for s in by_date[d]
+            )
+            parts.append(f"- {d[5:]}: {items}")
+        parts.append("")
+
+    # 전일 미국 시장
+    if nasdaq_overnight:
+        parts.append("## 전일 미국 시장")
+        for snap in nasdaq_overnight:
+            parts.append(f"- {snap.index_name}: {snap.close} ({snap.direction} {snap.change_pct}%)")
+        parts.append("")
 
     # 시장 데이터
     parts.append("## 시장 데이터")
