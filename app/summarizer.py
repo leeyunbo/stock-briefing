@@ -90,6 +90,7 @@ class ClaudeCliProvider:
 
     def call(self, system_prompt: str, user_prompt: str) -> str:
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+        env.setdefault("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")
         result = subprocess.run(
             ["claude", "-p", f"{system_prompt}\n\n{user_prompt}", "--output-format", "text"],
             capture_output=True,
