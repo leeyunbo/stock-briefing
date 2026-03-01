@@ -259,7 +259,7 @@
                     <span class="badge badge-fail">FAIL</span>
                     {% endif %}
                 </div>
-                <span class="run-time">{{ run.started_at.strftime('%m/%d %H:%M') }}</span>
+                <span class="run-time">{{ (run.started_at|kst).strftime('%m/%d %H:%M') }}</span>
             </div>
             <div class="run-meta">
                 <span class="run-meta-item">

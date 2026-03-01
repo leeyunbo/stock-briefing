@@ -285,7 +285,7 @@
                 </div>
                 <div class="run-summary-item">
                     <span class="run-summary-label">시작 시각</span>
-                    <span class="run-summary-value">{{ traces[0].created_at.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                    <span class="run-summary-value">{{ (traces[0].created_at|kst).strftime('%Y-%m-%d %H:%M:%S') }}</span>
                 </div>
                 <div class="run-summary-item">
                     <span class="run-summary-label">Run ID</span>

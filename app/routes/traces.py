@@ -1,6 +1,6 @@
 """AI 트레이스 브라우저 — run 단위 파이프라인 흐름 열람."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
@@ -13,6 +13,16 @@ from app.core.models import AiTrace
 
 router = APIRouter(prefix="/traces")
 templates = Jinja2Templates(directory="templates")
+
+KST = timezone(timedelta(hours=9))
+
+
+def _to_kst(dt: datetime) -> datetime:
+    """UTC datetime을 KST로 변환한다."""
+    return dt.replace(tzinfo=timezone.utc).astimezone(KST)
+
+
+templates.env.filters["kst"] = _to_kst
 
 PAGE_SIZE = 20
 
