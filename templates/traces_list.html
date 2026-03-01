@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Traces - Stock Briefing</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f7f8fa;
+            color: #191f28;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
+        }
+        .header h1 {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            color: #191f28;
+        }
+        .header .total {
+            font-size: 14px;
+            color: #8b95a1;
+            font-weight: 500;
+        }
+        .back-link {
+            color: #8b95a1;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.15s;
+        }
+        .back-link:hover { color: #3182f6; }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .filters select, .filters input {
+            padding: 10px 14px;
+            border: 1px solid #e5e8eb;
+            border-radius: 10px;
+            background: #fff;
+            color: #191f28;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .filters select:focus, .filters input:focus {
+            border-color: #3182f6;
+        }
+        .filters input::placeholder { color: #b0b8c1; }
+        .filters button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            background: #3182f6;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .filters button:hover { opacity: 0.85; }
+
+        /* Run cards */
+        .run-card {
+            display: block;
+            background: #fff;
+            border: 1px solid #e5e8eb;
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-bottom: 12px;
+            text-decoration: none;
+            color: inherit;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .run-card:hover {
+            border-color: #3182f6;
+            box-shadow: 0 2px 12px rgba(49,130,246,0.08);
+        }
+        .run-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .run-top-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .run-pipeline {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: #191f28;
+        }
+        .run-time {
+            font-size: 13px;
+            color: #8b95a1;
+        }
+        .run-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .run-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+            color: #4e5968;
+        }
+        .run-meta-item .label {
+            color: #8b95a1;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-pipeline {
+            background: #e8f3ff;
+            color: #3182f6;
+        }
+        .badge-success {
+            background: #e8faf0;
+            color: #00b853;
+        }
+        .badge-fail {
+            background: #fff0f0;
+            color: #f04452;
+        }
+        .badge-stages {
+            background: #f3eeff;
+            color: #8b5cf6;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 32px;
+        }
+        .pagination a, .pagination span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+        .pagination a {
+            color: #4e5968;
+            background: #fff;
+            border: 1px solid #e5e8eb;
+        }
+        .pagination a:hover { background: #f2f4f6; }
+        .pagination .current {
+            color: #fff;
+            background: #3182f6;
+            border: 1px solid #3182f6;
+        }
+        .pagination .disabled {
+            color: #d1d6db;
+            pointer-events: none;
+            border: 1px solid #e5e8eb;
+        }
+
+        /* Empty */
+        .empty {
+            text-align: center;
+            padding: 80px 0;
+        }
+        .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+        .empty-text {
+            font-size: 15px;
+            color: #8b95a1;
+            line-height: 1.7;
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .run-card { animation: fadeIn 0.4s ease both; }
+
+        @media (max-width: 700px) {
+            .container { padding: 32px 16px 60px; }
+            .run-card { padding: 16px 18px; }
+            .run-meta { gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>AI Traces</h1>
+                <span class="total">{{ total }}건의 실행</span>
+            </div>
+            <a class="back-link" href="/archive">← 아카이브</a>
+        </div>
+
+        <form class="filters" action="/traces" method="get">
+            <select name="pipeline">
+                <option value="">전체 파이프라인</option>
+                {% for p in pipelines %}
+                <option value="{{ p }}" {% if p == selected_pipeline %}selected{% endif %}>
+                    {{ pipeline_labels.get(p, p) }}
+                </option>
+                {% endfor %}
+            </select>
+            <input type="date" name="date_from" value="{{ date_from }}" placeholder="시작일">
+            <input type="date" name="date_to" value="{{ date_to }}" placeholder="종료일">
+            <button type="submit">필터</button>
+        </form>
+
+        {% if runs %}
+        {% for run in runs %}
+        <a class="run-card" href="/traces/run/{{ run.run_id }}" style="animation-delay: {{ loop.index0 * 0.04 }}s">
+            <div class="run-top">
+                <div class="run-top-left">
+                    <span class="run-pipeline">{{ pipeline_labels.get(run.pipeline, run.pipeline) }}</span>
+                    <span class="badge badge-stages">{{ run.stage_count }}단계</span>
+                    {% if run.all_success %}
+                    <span class="badge badge-success">OK</span>
+                    {% else %}
+                    <span class="badge badge-fail">FAIL</span>
+                    {% endif %}
+                </div>
+                <span class="run-time">{{ run.started_at.strftime('%m/%d %H:%M') }}</span>
+            </div>
+            <div class="run-meta">
+                <span class="run-meta-item">
+                    <span class="label">소요시간</span>
+                    {{ "%.1f"|format(run.total_latency_ms / 1000) }}s
+                </span>
+                {% if run.total_input_tokens %}
+                <span class="run-meta-item">
+                    <span class="label">토큰</span>
+                    {{ "{:,}".format(run.total_input_tokens) }} → {{ "{:,}".format(run.total_output_tokens or 0) }}
+                </span>
+                {% endif %}
+                <span class="run-meta-item">
+                    <span class="label">run</span>
+                    {{ run.run_id[:8] }}
+                </span>
+            </div>
+        </a>
+        {% endfor %}
+
+        {% if total_pages > 1 %}
+        <nav class="pagination">
+            {% if page > 1 %}
+            <a href="/traces?page={{ page - 1 }}{% if selected_pipeline %}&pipeline={{ selected_pipeline }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">‹</a>
+            {% else %}
+            <span class="disabled">‹</span>
+            {% endif %}
+            {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <span class="current">{{ p }}</span>
+            {% elif p <= 3 or p >= total_pages - 2 or (p >= page - 1 and p <= page + 1) %}
+            <a href="/traces?page={{ p }}{% if selected_pipeline %}&pipeline={{ selected_pipeline }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">{{ p }}</a>
+            {% endif %}
+            {% endfor %}
+            {% if page < total_pages %}
+            <a href="/traces?page={{ page + 1 }}{% if selected_pipeline %}&pipeline={{ selected_pipeline }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">›</a>
+            {% else %}
+            <span class="disabled">›</span>
+            {% endif %}
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="empty">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-text">
+                아직 AI 호출 기록이 없습니다.<br>파이프라인을 실행하면 여기에 트레이스가 기록됩니다.
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

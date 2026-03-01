@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ pipeline_label }} - Trace</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f7f8fa;
+            color: #191f28;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        /* Nav */
+        .nav { margin-bottom: 28px; }
+        .nav a {
+            color: #8b95a1;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.15s;
+        }
+        .nav a:hover { color: #3182f6; }
+
+        /* Run header */
+        .run-header {
+            background: #fff;
+            border: 1px solid #e5e8eb;
+            border-radius: 20px;
+            padding: 28px 32px;
+            margin-bottom: 32px;
+        }
+        .run-header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.8px;
+            color: #191f28;
+            margin-bottom: 16px;
+        }
+        .run-summary {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        .run-summary-item {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .run-summary-label {
+            font-size: 12px;
+            color: #8b95a1;
+            font-weight: 600;
+        }
+        .run-summary-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333d4b;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-success { background: #e8faf0; color: #00b853; }
+        .badge-fail { background: #fff0f0; color: #f04452; }
+
+        /* Flow timeline */
+        .flow {
+            position: relative;
+            padding-left: 32px;
+        }
+        .flow::before {
+            content: '';
+            position: absolute;
+            left: 11px;
+            top: 24px;
+            bottom: 24px;
+            width: 2px;
+            background: #e5e8eb;
+        }
+
+        /* Stage card */
+        .stage {
+            position: relative;
+            margin-bottom: 24px;
+        }
+        .stage:last-child { margin-bottom: 0; }
+        .stage-dot {
+            position: absolute;
+            left: -32px;
+            top: 24px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            z-index: 1;
+        }
+        .stage-dot.success {
+            background: #e8faf0;
+            color: #00b853;
+            border: 2px solid #b8eacc;
+        }
+        .stage-dot.fail {
+            background: #fff0f0;
+            color: #f04452;
+            border: 2px solid #fcc;
+        }
+
+        .stage-card {
+            background: #fff;
+            border: 1px solid #e5e8eb;
+            border-radius: 16px;
+            overflow: hidden;
+            transition: border-color 0.15s;
+        }
+        .stage-card:hover {
+            border-color: #d1d6db;
+        }
+
+        .stage-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 24px;
+        }
+        .stage-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .stage-name {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: #191f28;
+        }
+        .stage-provider {
+            font-size: 12px;
+            color: #8b95a1;
+            font-weight: 500;
+        }
+        .stage-meta {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .stage-latency {
+            font-size: 14px;
+            font-weight: 600;
+            color: #4e5968;
+            font-variant-numeric: tabular-nums;
+        }
+        .stage-tokens {
+            font-size: 12px;
+            color: #8b95a1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Prompt sections */
+        .stage-sections {
+            border-top: 1px solid #f2f4f6;
+        }
+        .prompt-section {
+            border-bottom: 1px solid #f2f4f6;
+        }
+        .prompt-section:last-child { border-bottom: none; }
+        .prompt-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s;
+        }
+        .prompt-header:hover { background: #f7f8fa; }
+        .prompt-header h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #6b7684;
+            letter-spacing: -0.3px;
+        }
+        .prompt-header .char-count {
+            font-size: 12px;
+            color: #b0b8c1;
+            margin-left: 8px;
+            font-weight: 500;
+        }
+        .prompt-header .toggle {
+            color: #b0b8c1;
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+        .prompt-header .toggle.open { transform: rotate(180deg); }
+        .prompt-body {
+            padding: 0 24px 18px;
+            display: none;
+        }
+        .prompt-body.open { display: block; }
+        .prompt-body pre {
+            background: #f7f8fa;
+            border: 1px solid #e5e8eb;
+            border-radius: 12px;
+            padding: 18px;
+            font-size: 13px;
+            line-height: 1.7;
+            color: #4e5968;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        /* Error */
+        .error-bar {
+            background: #fff5f5;
+            border-top: 1px solid #fcc;
+            padding: 12px 24px;
+            font-size: 13px;
+            color: #f04452;
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .run-header { animation: fadeIn 0.4s ease both; }
+        .stage { animation: fadeIn 0.4s ease both; }
+
+        @media (max-width: 600px) {
+            .container { padding: 32px 16px 60px; }
+            .run-header { padding: 20px; }
+            .flow { padding-left: 28px; }
+            .stage-dot { left: -28px; width: 20px; height: 20px; font-size: 10px; }
+            .stage-header { padding: 14px 18px; flex-direction: column; align-items: flex-start; gap: 8px; }
+            .prompt-header { padding: 12px 18px; }
+            .prompt-body { padding: 0 18px 14px; }
+            .prompt-body pre { padding: 14px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="/traces">← Traces</a>
+        </div>
+
+        <div class="run-header">
+            <h1>{{ pipeline_label }}</h1>
+            <div class="run-summary">
+                <div class="run-summary-item">
+                    <span class="run-summary-label">상태</span>
+                    <span class="run-summary-value">
+                        {% if all_success %}
+                        <span class="badge badge-success">OK</span>
+                        {% else %}
+                        <span class="badge badge-fail">FAIL</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="run-summary-item">
+                    <span class="run-summary-label">단계</span>
+                    <span class="run-summary-value">{{ traces|length }}단계</span>
+                </div>
+                <div class="run-summary-item">
+                    <span class="run-summary-label">총 소요시간</span>
+                    <span class="run-summary-value">{{ "%.1f"|format(total_latency / 1000) }}s</span>
+                </div>
+                <div class="run-summary-item">
+                    <span class="run-summary-label">시작 시각</span>
+                    <span class="run-summary-value">{{ traces[0].created_at.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                </div>
+                <div class="run-summary-item">
+                    <span class="run-summary-label">Run ID</span>
+                    <span class="run-summary-value" style="font-size:13px; color:#8b95a1">{{ run_id }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flow">
+            {% for t in traces %}
+            <div class="stage" style="animation-delay: {{ loop.index0 * 0.08 + 0.2 }}s">
+                <div class="stage-dot {{ 'success' if t.success else 'fail' }}">{{ loop.index }}</div>
+                <div class="stage-card">
+                    <div class="stage-header">
+                        <div class="stage-header-left">
+                            <span class="stage-name">{{ t.stage }}</span>
+                            <span class="stage-provider">{{ t.provider_name }} · {{ t.model_name }}</span>
+                        </div>
+                        <div class="stage-meta">
+                            {% if t.input_tokens %}
+                            <span class="stage-tokens">{{ "{:,}".format(t.input_tokens) }} → {{ "{:,}".format(t.output_tokens or 0) }} 토큰</span>
+                            {% endif %}
+                            <span class="stage-latency">{{ "%.1f"|format(t.latency_ms / 1000) }}s</span>
+                        </div>
+                    </div>
+
+                    {% if t.error_message %}
+                    <div class="error-bar">{{ t.error_message }}</div>
+                    {% endif %}
+
+                    <div class="stage-sections">
+                        <div class="prompt-section">
+                            <div class="prompt-header" onclick="toggleSection(this)">
+                                <h3>System Prompt<span class="char-count">{{ t.system_prompt|length }}자</span></h3>
+                                <span class="toggle">▼</span>
+                            </div>
+                            <div class="prompt-body">
+                                <pre>{{ t.system_prompt }}</pre>
+                            </div>
+                        </div>
+                        <div class="prompt-section">
+                            <div class="prompt-header" onclick="toggleSection(this)">
+                                <h3>User Prompt<span class="char-count">{{ t.user_prompt|length }}자</span></h3>
+                                <span class="toggle">▼</span>
+                            </div>
+                            <div class="prompt-body">
+                                <pre>{{ t.user_prompt }}</pre>
+                            </div>
+                        </div>
+                        <div class="prompt-section">
+                            <div class="prompt-header" onclick="toggleSection(this)">
+                                <h3>Response<span class="char-count">{{ t.response|length }}자</span></h3>
+                                <span class="toggle open">▼</span>
+                            </div>
+                            <div class="prompt-body open">
+                                <pre>{{ t.response }}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        function toggleSection(header) {
+            const body = header.nextElementSibling;
+            const toggle = header.querySelector('.toggle');
+            body.classList.toggle('open');
+            toggle.classList.toggle('open');
+        }
+    </script>
+</body>
+</html>
