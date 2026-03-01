@@ -13,6 +13,7 @@ import httpx
 
 from app.collector.news import NewsArticle, fetch_news
 from app.core.config import get_settings
+from app.core.http import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +189,6 @@ async def fetch_subscriptions() -> list[SubscriptionInfo]:
     """청약Home API에서 수도권 접수중/접수예정 청약을 조회한다."""
     today = date.today()
 
-    from app.core.http import get_http_client
     client = get_http_client()
     tasks = [_fetch_apt_list(client, secd) for secd in HOUSE_SECD_MAP]
     results = await asyncio.gather(*tasks, return_exceptions=True)
