@@ -5,7 +5,7 @@ import logging
 import httpx
 from pydantic import BaseModel, field_validator
 
-from app.core.config import settings
+from app.core.http import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ NAVER_POLLING_API = "https://polling.finance.naver.com/api/realtime/domestic/sto
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
-# ── Pydantic 모델 계층 (스프링의 Jackson DTO 중첩과 동일) ──
+# ── Pydantic 모델 ──
 
 
 class IndexData(BaseModel):
@@ -84,29 +84,27 @@ async def fetch_market_summary() -> MarketSummary:
     """시장 요약 데이터를 가져온다."""
     market = MarketSummary()
 
-    async with httpx.AsyncClient(timeout=settings.api_timeout, headers=HEADERS) as client:
-        # 코스피/코스닥 지수
-        for code, field in [("KOSPI", "kospi"), ("KOSDAQ", "kosdaq")]:
-            index_data = await _fetch_index(client, code)
-            if index_data:
-                if field == "kospi":
-                    market.kospi = index_data.index
-                else:
-                    market.kosdaq = index_data.index
-                if index_data.date:
-                    market.date = index_data.date
+    client = get_http_client()
 
-        # 코스피 시총 TOP10
-        market.kospi_top10 = await _fetch_top10(client)
+    for code, field_name in [("KOSPI", "kospi"), ("KOSDAQ", "kosdaq")]:
+        index_data = await _fetch_index(client, code)
+        if index_data:
+            if field_name == "kospi":
+                market.kospi = index_data.index
+            else:
+                market.kosdaq = index_data.index
+            if index_data.date:
+                market.date = index_data.date
 
-        # 투자자별 매매동향
-        for code, field in [("KOSPI", "kospi_investor"), ("KOSDAQ", "kosdaq_investor")]:
-            investor = await _fetch_investor(client, code)
-            if investor:
-                if field == "kospi_investor":
-                    market.kospi_investor = investor
-                else:
-                    market.kosdaq_investor = investor
+    market.kospi_top10 = await _fetch_top10(client)
+
+    for code, field_name in [("KOSPI", "kospi_investor"), ("KOSDAQ", "kosdaq_investor")]:
+        investor = await _fetch_investor(client, code)
+        if investor:
+            if field_name == "kospi_investor":
+                market.kospi_investor = investor
+            else:
+                market.kosdaq_investor = investor
 
     return market
 

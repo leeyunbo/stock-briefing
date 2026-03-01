@@ -7,7 +7,8 @@ from datetime import date, timedelta
 
 import httpx
 
-from app.core.config import settings
+from app.core.config import get_settings
+from app.core.http import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -57,18 +58,17 @@ async def fetch_disclosures(target_date: date | None = None) -> list[Disclosure]
 
     date_str = target_date.strftime("%Y%m%d")
     base_params = {
-        "crtfc_key": settings.dart_api_key,
+        "crtfc_key": get_settings().dart_api_key,
         "bgn_de": date_str,
         "end_de": date_str,
         "page_count": 30,
     }
 
-    async with httpx.AsyncClient(timeout=settings.api_timeout) as client:
-        # 4개 카테고리 동시 호출 — 스프링 WebFlux의 Mono.zip()과 동일
-        results = await asyncio.gather(
-            *[_fetch_by_type(client, base_params, ty) for ty in DISCLOSURE_TYPES],
-            return_exceptions=True,
-        )
+    client = get_http_client()
+    results = await asyncio.gather(
+        *[_fetch_by_type(client, base_params, ty) for ty in DISCLOSURE_TYPES],
+        return_exceptions=True,
+    )
 
     # 결과 병합 (예외가 섞여 있을 수 있으므로 필터링)
     all_disclosures: list[dict] = []

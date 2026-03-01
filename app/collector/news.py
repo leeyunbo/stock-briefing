@@ -6,7 +6,8 @@ from dataclasses import dataclass
 
 import httpx
 
-from app.core.config import settings
+from app.core.config import get_settings
+from app.core.http import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +32,8 @@ def _strip_html(text: str) -> str:
 async def fetch_news(query: str = "주식 증시", count: int = 5) -> list[NewsArticle]:
     """네이버 뉴스 검색으로 최신 뉴스를 가져온다."""
     headers = {
-        "X-Naver-Client-Id": settings.naver_client_id,
-        "X-Naver-Client-Secret": settings.naver_client_secret,
+        "X-Naver-Client-Id": get_settings().naver_client_id,
+        "X-Naver-Client-Secret": get_settings().naver_client_secret,
     }
     params = {
         "query": query,
@@ -41,10 +42,10 @@ async def fetch_news(query: str = "주식 증시", count: int = 5) -> list[NewsA
     }
 
     try:
-        async with httpx.AsyncClient(timeout=settings.api_timeout) as client:
-            resp = await client.get(NAVER_SEARCH_URL, headers=headers, params=params)
-            resp.raise_for_status()
-            data = resp.json()
+        client = get_http_client()
+        resp = await client.get(NAVER_SEARCH_URL, headers=headers, params=params)
+        resp.raise_for_status()
+        data = resp.json()
     except httpx.HTTPStatusError as e:
         logger.warning("뉴스 API HTTP 에러 (query=%s): %d", query, e.response.status_code)
         return []

@@ -12,7 +12,7 @@ from datetime import date, timedelta
 import httpx
 
 from app.collector.news import NewsArticle, fetch_news
-from app.core.config import settings
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ async def _fetch_apt_list(
     params = {
         "page": 1,
         "perPage": 100,
-        "serviceKey": settings.applyhome_api_key,
+        "serviceKey": get_settings().applyhome_api_key,
     }
 
     try:
@@ -188,10 +188,10 @@ async def fetch_subscriptions() -> list[SubscriptionInfo]:
     """청약Home API에서 수도권 접수중/접수예정 청약을 조회한다."""
     today = date.today()
 
-    async with httpx.AsyncClient(timeout=settings.api_timeout) as client:
-        # 세 유형 병렬 호출
-        tasks = [_fetch_apt_list(client, secd) for secd in HOUSE_SECD_MAP]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+    from app.core.http import get_http_client
+    client = get_http_client()
+    tasks = [_fetch_apt_list(client, secd) for secd in HOUSE_SECD_MAP]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
 
     subscriptions: list[SubscriptionInfo] = []
     seen: set[str] = set()
@@ -247,17 +247,17 @@ async def fetch_subscription_prices(
         "perPage": 100,
         "cond[HOUSE_MANAGE_NO::EQ]": house_manage_no,
         "cond[PBLANC_NO::EQ]": pblanc_no,
-        "serviceKey": settings.applyhome_api_key,
+        "serviceKey": get_settings().applyhome_api_key,
     }
 
     try:
-        async with httpx.AsyncClient(timeout=settings.api_timeout) as client:
-            resp = await client.get(
-                f"{APPLYHOME_BASE_URL}/getAPTLttotPblancMdl",
-                params=params,
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        client = get_http_client()
+        resp = await client.get(
+            f"{APPLYHOME_BASE_URL}/getAPTLttotPblancMdl",
+            params=params,
+        )
+        resp.raise_for_status()
+        data = resp.json()
     except httpx.HTTPStatusError as e:
         logger.warning("분양가 조회 HTTP 에러 (manage_no=%s): %d", house_manage_no, e.response.status_code)
         return []

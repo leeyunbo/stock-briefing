@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import httpx
 from pydantic import BaseModel
 
-from app.core.config import settings
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ async def _fetch_quote(client: httpx.AsyncClient, symbol: str) -> dict | None:
     try:
         resp = await client.get(
             f"{FINNHUB_BASE}/quote",
-            params={"symbol": symbol, "token": settings.finnhub_api_key},
+            params={"symbol": symbol, "token": get_settings().finnhub_api_key},
         )
         resp.raise_for_status()
         data = resp.json()
@@ -101,7 +101,7 @@ async def _fetch_profile(client: httpx.AsyncClient, symbol: str) -> dict | None:
     try:
         resp = await client.get(
             f"{FINNHUB_BASE}/stock/profile2",
-            params={"symbol": symbol, "token": settings.finnhub_api_key},
+            params={"symbol": symbol, "token": get_settings().finnhub_api_key},
         )
         resp.raise_for_status()
         data = resp.json()
@@ -122,7 +122,7 @@ async def _fetch_company_news(client: httpx.AsyncClient, symbol: str) -> list[st
                 "symbol": symbol,
                 "from": yesterday,
                 "to": today,
-                "token": settings.finnhub_api_key,
+                "token": get_settings().finnhub_api_key,
             },
         )
         resp.raise_for_status()
@@ -190,7 +190,7 @@ async def _fetch_stock(client: httpx.AsyncClient, symbol: str) -> USStockData | 
 
 async def _fetch_watchlist(client: httpx.AsyncClient) -> list[USStockData]:
     """워치리스트 종목들을 병렬 수집한다."""
-    symbols = [s.strip() for s in settings.nasdaq_watchlist.split(",") if s.strip()]
+    symbols = [s.strip() for s in get_settings().nasdaq_watchlist.split(",") if s.strip()]
     results = await asyncio.gather(*[_fetch_stock(client, symbol) for symbol in symbols])
     return [s for s in results if s is not None]
 
@@ -199,9 +199,10 @@ async def fetch_nasdaq_summary() -> NasdaqSummary:
     """나스닥 데이터를 수집한다."""
     summary = NasdaqSummary(date=datetime.now().strftime("%Y-%m-%d"))
 
-    async with httpx.AsyncClient(timeout=settings.api_timeout) as client:
-        summary.indices = await _fetch_indices(client)
-        summary.stocks = await _fetch_watchlist(client)
+    from app.core.http import get_http_client
+    client = get_http_client()
+    summary.indices = await _fetch_indices(client)
+    summary.stocks = await _fetch_watchlist(client)
 
     logger.info("나스닥 수집 완료: 지수 %d개, 종목 %d개", len(summary.indices), len(summary.stocks))
     return summary
