@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 # BriefingType → WordPress category slug 매핑
 CATEGORY_SLUG_MAP: dict[str, str] = {
     BriefingType.NASDAQ: "us-stocks",
-    BriefingType.NEWS_DIVE: "market",
+    BriefingType.NEWS_DIVE: "daily-news",
+    BriefingType.ISSUE_DIVE: "deep-dive",
     BriefingType.KOSPI: "kr-stocks",
     BriefingType.REAL_ESTATE: "real-estate",
 }
@@ -36,20 +37,32 @@ async def _upload_media(
     client: httpx.AsyncClient,
     image_bytes: bytes,
     filename: str,
-) -> int | None:
-    """WordPress에 이미지를 업로드하고 media_id를 반환한다."""
+    alt_text: str = "",
+) -> tuple[int, str] | None:
+    """WordPress에 이미지를 업로드하고 (media_id, source_url)을 반환한다."""
+    content_type = "image/jpeg" if filename.endswith((".jpg", ".jpeg")) else "image/png"
     resp = await client.post(
         f"{get_settings().wp_url}/wp-json/wp/v2/media",
         content=image_bytes,
         headers={
-            "Content-Type": "image/png",
+            "Content-Type": content_type,
             "Content-Disposition": f'attachment; filename="{filename}"',
         },
     )
     if resp.status_code == 201:
-        media_id = resp.json()["id"]
+        media = resp.json()
+        media_id = media["id"]
+        source_url = media.get("source_url", "")
         logger.info("WordPress 미디어 업로드 완료: id=%d, file=%s", media_id, filename)
-        return media_id
+
+        # alt 텍스트 설정 (SEO 점수에 기여)
+        if alt_text:
+            await client.post(
+                f"{get_settings().wp_url}/wp-json/wp/v2/media/{media_id}",
+                json={"alt_text": alt_text},
+            )
+
+        return media_id, source_url
 
     logger.error(
         "WordPress 미디어 업로드 실패: status=%s, body=%s",
@@ -105,22 +118,50 @@ async def _resolve_tag_ids(client: httpx.AsyncClient, tags: list[str]) -> list[i
 async def _update_rankmath_meta(
     client: httpx.AsyncClient,
     post_id: int,
-    focus_keyword: str,
-    description: str,
+    *,
+    focus_keyword: str = "",
+    seo_title: str = "",
+    description: str = "",
+    og_image_url: str = "",
+    category_id: int | None = None,
 ) -> None:
-    """Rank Math SEO 메타데이터를 업데이트한다."""
-    meta = {}
+    """Rank Math SEO 메타데이터를 WordPress REST API로 직접 설정한다.
+
+    functions.php에 register_post_meta()로 rank_math_* 필드를
+    show_in_rest=true 등록이 필요하다.
+    """
+    meta: dict[str, str] = {}
+
+    # 기본 SEO
     if focus_keyword:
         meta["rank_math_focus_keyword"] = focus_keyword
+    if seo_title:
+        meta["rank_math_title"] = seo_title
     if description:
         meta["rank_math_description"] = description
+
+    # Open Graph (Facebook)
+    meta["rank_math_facebook_title"] = seo_title or focus_keyword
+    if description:
+        meta["rank_math_facebook_description"] = description
+    if og_image_url:
+        meta["rank_math_facebook_image"] = og_image_url
+
+    # Twitter: Facebook 설정 재활용
+    meta["rank_math_twitter_use_facebook"] = "on"
+    meta["rank_math_twitter_card_type"] = "summary_large_image"
+
+    # 카테고리
+    if category_id:
+        meta["rank_math_primary_category"] = str(category_id)
+
     if not meta:
         return
 
     try:
         resp = await client.post(
-            f"{get_settings().wp_url}/wp-json/rankmath/v1/updateMeta",
-            json={"objectType": "post", "objectID": post_id, "meta": meta},
+            f"{get_settings().wp_url}/wp-json/wp/v2/posts/{post_id}",
+            json={"meta": meta},
         )
         if resp.status_code == 200:
             logger.info("Rank Math SEO 메타 업데이트 완료: post_id=%d, keyword=%s", post_id, focus_keyword)
@@ -141,6 +182,7 @@ async def publish_to_wordpress(
     og_image: bytes | None = None,
     focus_keyword: str = "",
     seo_description: str = "",
+    unsplash_image: tuple[bytes, str, str] | None = None,
 ) -> tuple[int, str] | None:
     """WordPress에 포스트를 발행하고 (post_id, post_link)를 반환한다.
 
@@ -173,13 +215,41 @@ async def publish_to_wordpress(
 
             # OG 이미지 업로드 → featured_media
             featured_media_id = None
+            og_image_url = ""
             if og_image:
                 filename = f"{_slugify(title)}-og.png"
-                featured_media_id = await _upload_media(client, og_image, filename)
+                upload_result = await _upload_media(
+                    client, og_image, filename,
+                    alt_text=focus_keyword or title,
+                )
+                if upload_result:
+                    featured_media_id, og_image_url = upload_result
+
+            # Unsplash 이미지 업로드 → 본문 상단에 삽입
+            content_html = html
+            if unsplash_image:
+                img_bytes, _img_url, photographer = unsplash_image
+                unsplash_filename = f"{_slugify(title)}-unsplash.jpg"
+                unsplash_upload = await _upload_media(
+                    client, img_bytes, unsplash_filename,
+                    alt_text=focus_keyword or title,
+                )
+                if unsplash_upload:
+                    _, unsplash_src = unsplash_upload
+                    alt = focus_keyword or title
+                    content_html = (
+                        f'<figure style="margin:0 0 1.5rem;">'
+                        f'<img src="{unsplash_src}" alt="{alt}" '
+                        f'style="width:100%;height:auto;border-radius:12px;" />'
+                        f'<figcaption style="font-size:0.75rem;color:#8B95A1;text-align:center;margin-top:0.5rem;">'
+                        f'Photo by {photographer} / Unsplash</figcaption>'
+                        f'</figure>\n'
+                        + content_html
+                    )
 
             payload = {
                 "title": title,
-                "content": html,
+                "content": content_html,
                 "status": status,
                 "categories": category_ids,
             }
@@ -205,7 +275,13 @@ async def publish_to_wordpress(
 
                 # Rank Math SEO 메타 업데이트
                 await _update_rankmath_meta(
-                    client, post_id, focus_keyword, seo_description or excerpt,
+                    client,
+                    post_id,
+                    focus_keyword=focus_keyword,
+                    seo_title=title,
+                    description=seo_description or excerpt,
+                    og_image_url=og_image_url,
+                    category_id=category_ids[0] if category_ids else None,
                 )
 
                 # Google Indexing API 자동 요청

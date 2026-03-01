@@ -9,6 +9,7 @@ from app.pipeline.base import deliver, run_steps
 from app.pipeline.kospi import KOSPI_STEPS
 from app.pipeline.nasdaq import NASDAQ_STEPS
 from app.pipeline.real_estate import REAL_ESTATE_STEPS
+from app.pipeline.issue_dive import ISSUE_DIVE_STEPS
 from app.pipeline.research import NEWS_DIVE_STEPS
 from app.tracing import generate_run_id
 
@@ -19,6 +20,7 @@ PIPELINES = [
     ("미국주식 (NASDAQ)", "nasdaq", BriefingType.NASDAQ, NASDAQ_STEPS),
     ("부동산", "real_estate", BriefingType.REAL_ESTATE, REAL_ESTATE_STEPS),
     ("뉴스 딥다이브", "news_dive", BriefingType.NEWS_DIVE, NEWS_DIVE_STEPS),
+    ("이슈 딥다이브", "issue_dive", BriefingType.ISSUE_DIVE, ISSUE_DIVE_STEPS),
 ]
 
 

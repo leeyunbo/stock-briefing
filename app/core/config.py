@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     # 청약Home API (공공데이터포털)
     applyhome_api_key: str = ""
 
+    # Unsplash
+    unsplash_access_key: str = ""
+
     # News dedup
     news_dedup_threshold: float = 0.92
     news_dedup_ttl_days: int = 7

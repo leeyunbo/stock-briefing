@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #F4F5F7; -webkit-text-size-adjust: 100%;">
+<table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #F4F5F7; font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;">
+<tr><td align="center" style="padding: 32px 16px;">
+
+<!-- Main Card -->
+<table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+
+    <!-- Logo -->
+    <tr>
+        <td style="padding: 28px 32px 0 32px;">
+            <table cellpadding="0" cellspacing="0" border="0"><tr>
+                <td style="width: 8px; height: 8px; background-color: #3182F6; border-radius: 50%;"></td>
+                <td style="padding-left: 8px; font-size: 14px; font-weight: 700; color: #3182F6; letter-spacing: -0.3px;">Moneydive</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <!-- Header -->
+    <tr>
+        <td style="padding: 32px 32px 0 32px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background: linear-gradient(135deg, #3182F6, #1B64DA); border-radius: 16px; overflow: hidden;">
+                <tr>
+                    <td align="center" style="padding: 40px 32px;">
+                        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7); letter-spacing: -0.2px;">{{ date_display }}</p>
+                        <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #FFFFFF; line-height: 1.4; letter-spacing: -0.8px;">오늘의 머니다이브</h1>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+
+    <!-- Intro -->
+    <tr>
+        <td style="padding: 24px 32px 8px 32px;">
+            <p style="margin: 0; font-size: 15px; line-height: 1.7; color: #4E5968; letter-spacing: -0.3px;">오늘 발행된 {{ items|length }}개의 브리핑을 모았어요.</p>
+        </td>
+    </tr>
+
+    <!-- Article List -->
+    {% for item in items %}
+    <tr>
+        <td style="padding: 12px 32px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border: 1px solid #E5E8EB; border-radius: 12px; overflow: hidden;">
+                <tr>
+                    <td style="padding: 20px 24px;">
+                        <!-- Category Badge -->
+                        <table cellpadding="0" cellspacing="0" border="0"><tr>
+                            <td style="background-color: {{ item.badge_color }}; border-radius: 6px; padding: 4px 10px;">
+                                <span style="font-size: 11px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.2px;">{{ item.category }}</span>
+                            </td>
+                        </tr></table>
+                        <!-- Title -->
+                        <p style="margin: 12px 0 0 0; font-size: 16px; font-weight: 700; color: #191F28; line-height: 1.5; letter-spacing: -0.4px;">{{ item.title }}</p>
+                        {% if item.excerpt %}
+                        <p style="margin: 8px 0 0 0; font-size: 14px; color: #6B7684; line-height: 1.6; letter-spacing: -0.2px;">{{ item.excerpt }}</p>
+                        {% endif %}
+                        {% if item.blog_url %}
+                        <!-- CTA -->
+                        <p style="margin: 14px 0 0 0;">
+                            <a href="{{ item.blog_url }}" target="_blank" style="font-size: 14px; font-weight: 600; color: #3182F6; text-decoration: none; letter-spacing: -0.2px;">자세히 보기 &rarr;</a>
+                        </p>
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    {% endfor %}
+
+    <!-- Bottom Spacing -->
+    <tr><td style="padding: 20px 0;"></td></tr>
+
+</table>
+<!-- End Main Card -->
+
+<!-- Footer -->
+<table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; margin-top: 20px;">
+    <tr>
+        <td align="center" style="padding: 8px 0;">
+            <span style="font-size: 11px; color: #8B95A1;">Moneydive &middot; AI 주식 브리핑</span>
+        </td>
+    </tr>
+    <tr>
+        <td align="center" style="padding: 0 0 4px 0;">
+            <span style="font-size: 11px; color: #B0B8C1;">AI가 공개 뉴스를 바탕으로 자동 생성한 콘텐츠이며, 투자 권유가 아닙니다.</span>
+        </td>
+    </tr>
+</table>
+
+</td></tr>
+</table>
+</body>
+</html>

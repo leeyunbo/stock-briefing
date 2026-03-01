@@ -3,7 +3,7 @@ Theme Name: MoneyDive
 Theme URI: https://dailymoneydive.com
 Description: 머니다이브 — 매일 아침 미국 주식과 부동산 시장을 쉽게 풀어드려요
 Author: MoneyDive
-Version: 2.2.0
+Version: 3.0.0
 Text Domain: moneydive
 */
 
@@ -45,7 +45,8 @@ Text Domain: moneydive
     --cat-us-stocks: #3182F6;
     --cat-kr-stocks: #F04452;
     --cat-real-estate: #1DB177;
-    --cat-market: #8B5CF6;
+    --cat-daily-news: #8B5CF6;
+    --cat-deep-dive: #E67E22;
 }
 
 /* ── Dark Mode (matched to email dark theme #111113) ── */
@@ -69,7 +70,8 @@ Text Domain: moneydive
     --cat-us-stocks: #5BA0F9;
     --cat-kr-stocks: #FF6B6B;
     --cat-real-estate: #34D399;
-    --cat-market: #A78BFA;
+    --cat-daily-news: #A78BFA;
+    --cat-deep-dive: #F5A623;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -93,7 +95,8 @@ Text Domain: moneydive
         --cat-us-stocks: #5BA0F9;
         --cat-kr-stocks: #FF6B6B;
         --cat-real-estate: #34D399;
-        --cat-market: #A78BFA;
+        --cat-daily-news: #A78BFA;
+    --cat-deep-dive: #F5A623;
     }
 }
 
@@ -268,6 +271,12 @@ img {
     height: 8px;
     background: var(--blue);
     border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
 }
 
 .hero-badge-text {
@@ -299,6 +308,10 @@ img {
     line-height: 1.65;
     margin-bottom: 0.75rem;
     letter-spacing: -0.2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .hero-meta-row {
@@ -313,12 +326,107 @@ img {
 }
 
 .hero-cat {
-    color: var(--blue);
     font-weight: 600;
 }
 
+.hero-cat.cat-us-stocks { color: var(--cat-us-stocks); }
+.hero-cat.cat-kr-stocks { color: var(--cat-kr-stocks); }
+.hero-cat.cat-real-estate { color: var(--cat-real-estate); }
+.hero-cat.cat-daily-news { color: var(--cat-daily-news); }
+.hero-cat.cat-deep-dive { color: var(--cat-deep-dive); }
+
 .hero-sep {
     color: var(--color-border);
+}
+
+/* ── Card Grid (top 4 posts, text-only) ── */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--color-border);
+    border-top: 1px solid var(--color-border);
+}
+
+.card-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 1.125rem 1.5rem;
+    background: var(--color-bg);
+    text-decoration: none;
+    color: inherit;
+    transition: background var(--transition);
+    border-left: 3px solid transparent;
+}
+
+.card-item:hover {
+    background: var(--color-bg-card);
+}
+
+.card-item.cat-us-stocks { border-left-color: var(--cat-us-stocks); }
+.card-item.cat-kr-stocks { border-left-color: var(--cat-kr-stocks); }
+.card-item.cat-real-estate { border-left-color: var(--cat-real-estate); }
+.card-item.cat-daily-news { border-left-color: var(--cat-daily-news); }
+.card-item.cat-deep-dive { border-left-color: var(--cat-deep-dive); }
+
+.card-deep-label {
+    position: absolute;
+    top: 0.875rem;
+    right: 0.875rem;
+    background: var(--cat-deep-dive);
+    color: #fff;
+    font-size: 0.575rem;
+    font-weight: 800;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+}
+
+.card-cat {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.card-cat.cat-us-stocks { color: var(--cat-us-stocks); }
+.card-cat.cat-kr-stocks { color: var(--cat-kr-stocks); }
+.card-cat.cat-real-estate { color: var(--cat-real-estate); }
+.card-cat.cat-daily-news { color: var(--cat-daily-news); }
+.card-cat.cat-deep-dive { color: var(--cat-deep-dive); }
+
+.card-title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1.4;
+    letter-spacing: -0.4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.card-item:hover .card-title {
+    color: var(--blue);
+}
+
+.card-excerpt {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.card-meta {
+    font-size: 0.7rem;
+    color: var(--color-text-faint);
+    margin-top: auto;
+    padding-top: 0.25rem;
 }
 
 /* ── Post Feed (flat list) ── */
@@ -328,7 +436,7 @@ img {
 
 .feed-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
     padding: 0.8rem 2rem;
@@ -373,6 +481,7 @@ img {
     align-items: center;
     gap: 0.625rem;
     flex-shrink: 0;
+    margin-top: 0.15rem;
 }
 
 .feed-row-cat {
@@ -385,7 +494,45 @@ img {
 .feed-row-cat.cat-us-stocks { color: var(--cat-us-stocks); }
 .feed-row-cat.cat-kr-stocks { color: var(--cat-kr-stocks); }
 .feed-row-cat.cat-real-estate { color: var(--cat-real-estate); }
-.feed-row-cat.cat-market { color: var(--cat-market); }
+.feed-row-cat.cat-daily-news { color: var(--cat-daily-news); }
+.feed-row-cat.cat-deep-dive { color: var(--cat-deep-dive); }
+
+.feed-row-excerpt {
+    display: -webkit-box;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin-top: 0.2rem;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Deep dive accent in feed */
+.feed-row-deep {
+    border-left: 3px solid var(--cat-deep-dive);
+}
+
+.feed-deep-tag {
+    display: inline-block;
+    background: var(--cat-deep-dive);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    margin-right: 0.35rem;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+}
+
+.feed-row-time {
+    font-size: 0.68rem;
+    color: var(--color-text-faint);
+    white-space: nowrap;
+}
 
 .feed-row-date {
     font-size: 0.72rem;
@@ -551,11 +698,53 @@ img {
     font-weight: 600;
 }
 
+/* ── Reading Progress Bar ── */
+.reading-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 3px;
+    background: var(--blue);
+    z-index: 9999;
+    transition: width 0.1s linear;
+}
+
+/* ── Breadcrumb ── */
+.breadcrumb {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+}
+
+.breadcrumb a {
+    color: var(--color-text-muted);
+    transition: color var(--transition);
+}
+
+.breadcrumb a:hover {
+    color: var(--blue);
+}
+
+.breadcrumb-sep {
+    color: var(--color-text-faint);
+    font-size: 0.7rem;
+}
+
+.breadcrumb-current {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
 /* ── Post Content (email-matched typography) ── */
 .post-content {
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
     line-height: 1.75;
-    color: var(--color-text-secondary);
+    color: var(--color-text);
 }
 
 /* h2 → email-style blue left bar section header */
@@ -595,7 +784,7 @@ img {
 }
 
 .post-content p {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.875rem;
 }
 
 /* li → email-style rounded card items */
@@ -988,9 +1177,13 @@ img {
     .main-card { border-radius: 0; border-left: none; border-right: none; margin: 0; }
     .hero-section { padding: 1.5rem 1.25rem 0; }
     .hero-title { font-size: 1.25rem; }
+    .card-grid { grid-template-columns: 1fr 1fr; }
+    .card-item { padding: 0.875rem 1rem; }
 
     .feed-row { padding: 0.75rem 1.25rem; }
     .feed-row-right { gap: 0.5rem; }
+    .feed-row-excerpt { display: none; }
+    .feed-row-time { display: none; }
     .feed-more { padding: 0.875rem 1.25rem 1.25rem; }
 
     .site-content { border-radius: 0; border-left: none; border-right: none; margin-top: 0; padding: 1.5rem 1.25rem; }
@@ -1005,6 +1198,10 @@ img {
 @media (max-width: 480px) {
     html { font-size: 15px; }
     .related-grid { grid-template-columns: 1fr; }
+    .card-grid { grid-template-columns: 1fr; }
+    .newsletter-form { flex-direction: column; }
+    .newsletter-inner { padding: 1.5rem 1.25rem; }
+    .newsletter-section { margin: 1rem 0 0; }
 }
 
 /* ── Animation ── */
@@ -1018,6 +1215,211 @@ img {
 .related-card { animation: fadeIn 0.3s ease both; }
 .related-card:nth-child(2) { animation-delay: 0.03s; }
 .related-card:nth-child(3) { animation-delay: 0.06s; }
+
+/* ── Search Results Page ── */
+.search-header {
+    margin-bottom: 1.25rem;
+}
+
+.search-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+.search-keyword {
+    color: var(--blue);
+}
+
+.search-count {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    margin-top: 0.25rem;
+}
+
+.search-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--color-text-muted);
+}
+
+.search-retry-form {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+/* ── Search Toggle ── */
+.search-toggle {
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition);
+    color: var(--color-text-muted);
+}
+
+.search-toggle:hover {
+    background: var(--color-bg-card);
+    color: var(--color-text);
+}
+
+/* ── Search Overlay ── */
+.search-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 20vh;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+}
+
+.search-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.search-overlay-inner {
+    width: 90%;
+    max-width: 520px;
+}
+
+.search-form {
+    display: flex;
+    align-items: center;
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+}
+
+.search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    font-family: var(--font-sans);
+    color: var(--color-text);
+}
+
+.search-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.search-close {
+    background: transparent;
+    border: none;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    transition: color var(--transition);
+}
+
+.search-close:hover {
+    color: var(--color-text);
+}
+
+/* ── Newsletter Section ── */
+.newsletter-section {
+    max-width: var(--max-width-wide);
+    margin: 1.5rem auto 0;
+}
+
+.newsletter-inner {
+    background: var(--blue-bg);
+    border: 1px solid rgba(49, 130, 246, 0.12);
+    border-radius: var(--radius-xl);
+    padding: 2rem;
+    text-align: center;
+}
+
+.newsletter-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.newsletter-desc {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 1rem;
+}
+
+.newsletter-form {
+    display: flex;
+    gap: 0.5rem;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.newsletter-input {
+    flex: 1;
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    font-size: 0.875rem;
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    outline: none;
+    transition: border-color var(--transition);
+}
+
+.newsletter-input:focus {
+    border-color: var(--blue);
+}
+
+.newsletter-btn {
+    padding: 0.6rem 1.25rem;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: background var(--transition);
+    white-space: nowrap;
+}
+
+.newsletter-btn:hover {
+    background: var(--blue-light);
+}
+
+.newsletter-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.newsletter-msg {
+    font-size: 0.78rem;
+    margin-top: 0.5rem;
+    min-height: 1.2em;
+}
+
+.newsletter-msg.success { color: #1DB177; }
+.newsletter-msg.error { color: #F04452; }
 
 /* ── Utilities ── */
 .sr-only {

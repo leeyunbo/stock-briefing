@@ -10,7 +10,7 @@ from typing import Protocol, TypedDict
 from sqlalchemy import select
 
 from app.core.database import async_session
-from app.core.models import Briefing, Subscriber
+from app.core.models import Briefing, BriefingType, Subscriber
 from app.publishing.email_sender import send_briefing_to_subscribers
 from app.publishing.email_template import render_email
 from app.publishing.og_image import CATEGORY_DISPLAY, generate_og_image
@@ -32,6 +32,7 @@ class BriefingResult:
     excerpt: str = ""
     tags: list[str] = field(default_factory=list)
     focus_keyword: str = ""
+    image_keyword: str = ""
 
 
 # ── 파이프라인 컨텍스트 타입 ──
@@ -69,34 +70,77 @@ class Publisher(Protocol):
 
 
 class DBPublisher:
+    # 하루에 여러 건 발행 가능한 타입 (upsert 대신 항상 INSERT)
+    _MULTI_PER_DAY = {BriefingType.ISSUE_DIVE}
+
     async def publish(self, result: BriefingResult, briefing_type: str, **kwargs) -> dict:
         today = date.today()
         async with async_session() as db:
+            if briefing_type in self._MULTI_PER_DAY:
+                briefing = Briefing(
+                    date=today, briefing_type=briefing_type,
+                    title=result.title, content_html=result.html,
+                    excerpt=result.excerpt or "",
+                )
+                db.add(briefing)
+            else:
+                existing = await db.execute(
+                    select(Briefing).where(Briefing.date == today, Briefing.briefing_type == briefing_type)
+                )
+                briefing = existing.scalar_one_or_none()
+                if briefing:
+                    briefing.title = result.title
+                    briefing.content_html = result.html
+                    briefing.excerpt = result.excerpt or ""
+                else:
+                    briefing = Briefing(
+                        date=today, briefing_type=briefing_type,
+                        title=result.title, content_html=result.html,
+                        excerpt=result.excerpt or "",
+                    )
+                    db.add(briefing)
+            await db.flush()
+            briefing_id = briefing.id
+            await db.commit()
+        return {"briefing_id": briefing_id}
+
+    @staticmethod
+    async def update_blog_url(briefing_id: int, blog_url: str) -> None:
+        """WordPress 발행 후 blog_url을 DB에 업데이트한다."""
+        async with async_session() as db:
             existing = await db.execute(
-                select(Briefing).where(Briefing.date == today, Briefing.briefing_type == briefing_type)
+                select(Briefing).where(Briefing.id == briefing_id)
             )
             briefing = existing.scalar_one_or_none()
             if briefing:
-                briefing.title = result.title
-                briefing.content_html = result.html
-            else:
-                db.add(Briefing(date=today, briefing_type=briefing_type, title=result.title, content_html=result.html))
-            await db.commit()
-        return {}
+                briefing.blog_url = blog_url
+                await db.commit()
 
 
 class WordPressPublisher:
     async def publish(self, result: BriefingResult, briefing_type: str, **kwargs) -> dict:
+        from app.publishing.unsplash import fetch_unsplash_image
+
         category = CATEGORY_DISPLAY.get(briefing_type, briefing_type)
         og_image = generate_og_image(result.title, category)
+
+        # Unsplash 이미지 검색
+        unsplash_result = None
+        if result.image_keyword:
+            unsplash_result = await fetch_unsplash_image(result.image_keyword)
+
         wp_result = await publish_to_wordpress(
             result.title, result.html, briefing_type,
             slug=result.slug, excerpt=result.excerpt, tags=result.tags,
             og_image=og_image,
             focus_keyword=result.focus_keyword,
             seo_description=result.excerpt,
+            unsplash_image=unsplash_result,
         )
         blog_url = wp_result[1] if wp_result else ""
+        briefing_id = kwargs.get("briefing_id")
+        if blog_url and briefing_id:
+            await DBPublisher.update_blog_url(briefing_id, blog_url)
         return {"blog_url": blog_url, "category": category}
 
 

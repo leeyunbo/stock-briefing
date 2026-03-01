@@ -20,14 +20,16 @@ _CATEGORY_COLORS: dict[str, str] = {
     "국내주식": "#e74c3c",
     "미국주식": "#3498db",
     "부동산": "#27ae60",
-    "뉴스 딥다이브": "#9b59b6",
+    "오늘의 뉴스": "#9b59b6",
+    "이슈 딥다이브": "#e67e22",
 }
 
 # BriefingType → 카테고리 표시명
 CATEGORY_DISPLAY: dict[str, str] = {
     BriefingType.KOSPI: "국내주식",
     BriefingType.NASDAQ: "미국주식",
-    BriefingType.NEWS_DIVE: "뉴스 딥다이브",
+    BriefingType.NEWS_DIVE: "오늘의 뉴스",
+    BriefingType.ISSUE_DIVE: "이슈 딥다이브",
     BriefingType.REAL_ESTATE: "부동산",
 }
 _BG_COLOR = "#1a1a2e"

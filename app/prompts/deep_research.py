@@ -186,4 +186,4 @@ def summarize_research(data: StockResearchData, run_id: str = "") -> BriefingRes
     name = data.profile.name or data.ticker
     title = seo.title or f"{name} ({data.ticker}) 심화 분석 리포트"
     logger.info("딥리서치 보고서 완료: %s", title)
-    return BriefingResult(title=title, html=seo.html, slug=seo.slug, excerpt=seo.excerpt, tags=seo.tags, focus_keyword=seo.focus_keyword)
+    return BriefingResult(title=title, html=seo.html, slug=seo.slug, excerpt=seo.excerpt, tags=seo.tags, focus_keyword=seo.focus_keyword, image_keyword=seo.image_keyword)

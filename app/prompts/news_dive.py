@@ -298,4 +298,4 @@ def generate_news_dive_report(
 
     title = seo.title or f"{date.today().strftime('%Y년 %m월 %d일')} 뉴스 딥다이브"
     logger.info("뉴스 딥다이브 리포트 생성 완료: %s", title)
-    return BriefingResult(title=title, html=seo.html, slug=seo.slug, excerpt=seo.excerpt, tags=seo.tags, focus_keyword=seo.focus_keyword)
+    return BriefingResult(title=title, html=seo.html, slug=seo.slug, excerpt=seo.excerpt, tags=seo.tags, focus_keyword=seo.focus_keyword, image_keyword=seo.image_keyword)

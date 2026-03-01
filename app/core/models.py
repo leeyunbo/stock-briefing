@@ -13,6 +13,7 @@ class BriefingType(StrEnum):
     KOSPI = "kospi_briefing"
     NASDAQ = "nasdaq_briefing"
     NEWS_DIVE = "news_dive"
+    ISSUE_DIVE = "issue_dive"
     REAL_ESTATE = "real_estate_briefing"
 
 
@@ -27,15 +28,14 @@ class Subscriber(Base):
 
 class Briefing(Base):
     __tablename__ = "briefings"
-    __table_args__ = (
-        UniqueConstraint("date", "briefing_type", name="uq_briefing_date_type"),
-    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     date: Mapped[date] = mapped_column(Date, index=True)
     briefing_type: Mapped[str] = mapped_column(String(20), default="kr")
     title: Mapped[str] = mapped_column(String(200))
     content_html: Mapped[str] = mapped_column(Text)
+    blog_url: Mapped[str] = mapped_column(String(500), default="")
+    excerpt: Mapped[str] = mapped_column(String(500), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
 

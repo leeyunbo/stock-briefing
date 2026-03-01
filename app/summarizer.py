@@ -33,6 +33,7 @@ class SeoMetadata:
     excerpt: str = ""
     tags: list[str] = field(default_factory=list)
     focus_keyword: str = ""
+    image_keyword: str = ""
 
 
 class ClaudeProvider:
@@ -197,14 +198,39 @@ SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 뉴스레터 에디
 
 SEO_INSTRUCTION = """
 
+SEO 최적화 규칙 (Rank Math 100점을 목표로):
+
+1. focus_keyword 활용 (아래 JSON에서 정한 키워드):
+   - 제목(title)의 앞쪽 절반에 반드시 포함
+   - 본문 첫 문단(첫 <p> 또는 첫 <h2> 직후 문단)에 자연스럽게 포함
+   - <h2> 소제목 중 최소 1개에 포함
+   - excerpt(메타 디스크립션)에 포함
+   - 본문 전체에서 2~3회 자연스럽게 반복 (과도한 반복 금지)
+
+2. 제목 최적화:
+   - 숫자를 포함하세요 (예: "3가지", "5.2% 급등", "2026년")
+   - 감성/파워 단어를 포함하세요 (예: "급등", "충격", "돌파", "핵심", "필수", "서프라이즈")
+   - 반드시 28~40자 이내로 작성 (40자 초과 절대 금지!)
+
+3. 메타 디스크립션(excerpt):
+   - 120~155자 사이로 작성 (너무 짧거나 길면 감점)
+   - focus_keyword를 자연스럽게 포함
+   - 클릭을 유도하는 문장으로
+
+4. 본문 구조:
+   - 각 문단은 3~4문장 이내 (120단어 이하)로 짧게
+   - 외부 참고 링크가 있으면 <a href="..."> 1개 이상 포함
+   - 내부 링크가 있으면 포함 (없으면 생략)
+
 마지막으로, HTML 본문 아래에 SEO 메타데이터를 한 줄 JSON으로 출력하세요:
 <!-- SEO -->
-{"title": "오늘의 핵심 이슈 한 줄 제목!", "slug": "영문-날짜-키워드", "excerpt": "1~2문장 요약", "tags": ["태그1", "태그2"], "focus_keyword": "핵심 검색 키워드"}
-title: 그 날 시장의 메인 이슈를 담은 매력적인 제목. 예) "엔비디아 실적 서프라이즈! 국내주식 마감 브리핑"
-slug: 영문+숫자+하이픈만, 날짜 포함, 키워드 2~3개
-excerpt: 100자 이내
+{"title": "키워드 포함 매력적 제목 60자 이내!", "slug": "english-keyword-slug", "excerpt": "120~155자 메타 디스크립션, 키워드 포함", "tags": ["태그1", "태그2", "태그3"], "focus_keyword": "핵심 키워드", "image_keyword": "english search term"}
+title: 그 날 메인 이슈를 담은 제목. focus_keyword를 앞부분에 배치. 숫자+감성단어 포함.
+slug: 영문+하이픈만 사용. 날짜/숫자 절대 포함 금지! 핵심 키워드 2~3개로 구성 (예: "oil-crisis-hormuz-strait")
+excerpt: 120~155자, focus_keyword 포함, 클릭 유도 문장
 tags: 본문 핵심 키워드 3~5개 (한국어)
-focus_keyword: Rank Math SEO용 핵심 키워드 1개 (한국어, 검색량 높은 단어)
+focus_keyword: Rank Math SEO용 핵심 키워드 1개 (한국어, 검색량 높은 단어, 2~4단어)
+image_keyword: 기사 주제를 대표하는 영문 검색어 1~3단어 (Unsplash 이미지 검색용, 예: "stock market", "oil tanker", "semiconductor")
 """
 
 SYSTEM_PROMPT += WRITING_STYLE_RULES + SEO_INSTRUCTION
@@ -235,6 +261,7 @@ def extract_seo_metadata(raw: str) -> SeoMetadata:
             excerpt=data.get("excerpt", ""),
             tags=tags,
             focus_keyword=data.get("focus_keyword", ""),
+            image_keyword=data.get("image_keyword", ""),
         )
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning("SEO 메타데이터 파싱 실패: %s", e)

@@ -106,4 +106,4 @@ def summarize_nasdaq_data(data: NasdaqCollectedData, run_id: str = "") -> Briefi
 
     title = seo.title or f"{date.today().strftime('%Y년 %m월 %d일')} 미국주식 마감 브리핑"
     logger.info("나스닥 요약 완료: %s", title)
-    return BriefingResult(title=title, html=seo.html, slug=seo.slug, excerpt=seo.excerpt, tags=seo.tags, focus_keyword=seo.focus_keyword)
+    return BriefingResult(title=title, html=seo.html, slug=seo.slug, excerpt=seo.excerpt, tags=seo.tags, focus_keyword=seo.focus_keyword, image_keyword=seo.image_keyword)

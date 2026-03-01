@@ -1,3 +1,20 @@
+<!-- Newsletter Subscribe (준비되면 주석 해제) -->
+<?php /*
+<section class="newsletter-section">
+    <div class="newsletter-inner">
+        <div class="newsletter-text">
+            <strong class="newsletter-title">매일 아침, 시장 브리핑을 받아보세요</strong>
+            <p class="newsletter-desc">AI가 분석한 미국주식, 국내주식, 부동산 뉴스를 이메일로 전달해드려요.</p>
+        </div>
+        <form class="newsletter-form" id="newsletterForm">
+            <input type="email" name="email" placeholder="이메일 주소" required class="newsletter-input" />
+            <button type="submit" class="newsletter-btn">구독하기</button>
+        </form>
+        <p class="newsletter-msg" id="newsletterMsg"></p>
+    </div>
+</section>
+*/ ?>
+
 <footer class="site-footer">
     <div class="footer-inner">
         <div class="footer-disclaimer">
@@ -94,6 +111,59 @@ document.querySelector('.nav-toggle')?.addEventListener('click', function() {
     }, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
 
     headings.forEach(function(h) { observer.observe(h); });
+})();
+
+// ── Search Overlay ──
+(function() {
+    var overlay = document.getElementById('searchOverlay');
+    if (!overlay) return;
+    var input = overlay.querySelector('.search-input');
+    document.querySelector('.search-toggle')?.addEventListener('click', function() {
+        overlay.classList.add('active');
+        setTimeout(function() { input.focus(); }, 100);
+    });
+    overlay.querySelector('.search-close')?.addEventListener('click', function() {
+        overlay.classList.remove('active');
+    });
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.classList.remove('active');
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') overlay.classList.remove('active');
+    });
+})();
+
+// ── Newsletter Subscribe ──
+(function() {
+    var form = document.getElementById('newsletterForm');
+    var msg = document.getElementById('newsletterMsg');
+    if (!form) return;
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var email = form.querySelector('input[name="email"]').value;
+        var btn = form.querySelector('button');
+        btn.disabled = true;
+        btn.textContent = '처리 중...';
+        fetch('/wp-json/moneydive/v1/subscribe', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email: email})
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            msg.textContent = data.message;
+            msg.className = 'newsletter-msg ' + (data.success ? 'success' : 'error');
+            if (data.success) form.reset();
+        })
+        .catch(function() {
+            msg.textContent = '오류가 발생했습니다. 다시 시도해주세요.';
+            msg.className = 'newsletter-msg error';
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.textContent = '구독하기';
+        });
+    });
 })();
 
 // ── Prefetch on Hover ──

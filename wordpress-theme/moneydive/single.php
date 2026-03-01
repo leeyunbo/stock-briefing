@@ -1,16 +1,29 @@
 <?php get_header(); ?>
 
+<div class="reading-progress-bar" id="readingProgress"></div>
+
 <main class="site-content">
 
 <?php if (have_posts()) : the_post(); ?>
 
     <article>
-        <header class="single-header">
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb" aria-label="breadcrumb">
+            <a href="<?php echo esc_url(home_url('/')); ?>">홈</a>
+            <span class="breadcrumb-sep">&rsaquo;</span>
             <?php
             $categories = get_the_category();
             $cat_class = moneydive_category_class();
             if ($categories) :
             ?>
+                <a href="<?php echo esc_url(get_category_link($categories[0]->term_id)); ?>"><?php echo esc_html($categories[0]->name); ?></a>
+                <span class="breadcrumb-sep">&rsaquo;</span>
+            <?php endif; ?>
+            <span class="breadcrumb-current"><?php echo wp_trim_words(get_the_title(), 6, '…'); ?></span>
+        </nav>
+
+        <header class="single-header">
+            <?php if ($categories) : ?>
                 <a href="<?php echo esc_url(get_category_link($categories[0]->term_id)); ?>" class="post-category <?php echo esc_attr($cat_class); ?>">
                     <?php echo esc_html($categories[0]->name); ?>
                 </a>
@@ -148,6 +161,28 @@ function moneydiveShareX() {
     var url = encodeURIComponent(window.location.href);
     window.open('https://twitter.com/intent/tweet?text=' + text + '&url=' + url, '_blank', 'width=600,height=400');
 }
+
+// Reading progress bar
+(function() {
+    var bar = document.getElementById('readingProgress');
+    var content = document.querySelector('.post-content');
+    if (!bar || !content) return;
+    var ticking = false;
+    window.addEventListener('scroll', function() {
+        if (!ticking) {
+            requestAnimationFrame(function() {
+                var rect = content.getBoundingClientRect();
+                var scrollable = content.offsetHeight - window.innerHeight;
+                if (scrollable <= 0) { bar.style.width = '100%'; ticking = false; return; }
+                var scrolled = -rect.top;
+                var pct = Math.min(100, Math.max(0, (scrolled / scrollable) * 100));
+                bar.style.width = pct + '%';
+                ticking = false;
+            });
+            ticking = true;
+        }
+    });
+})();
 
 // Copy link
 function moneydiveCopyLink(btn) {

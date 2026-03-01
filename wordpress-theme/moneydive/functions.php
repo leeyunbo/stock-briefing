@@ -22,7 +22,7 @@ add_action('after_setup_theme', 'moneydive_setup');
 
 // 스타일 로드
 function moneydive_styles() {
-    wp_enqueue_style('moneydive-style', get_stylesheet_uri(), [], '2.6.0');
+    wp_enqueue_style('moneydive-style', get_stylesheet_uri(), [], '3.0.0');
 }
 add_action('wp_enqueue_scripts', 'moneydive_styles');
 
@@ -85,7 +85,8 @@ function moneydive_category_class($post_id = null) {
         'us-stocks'   => 'cat-us-stocks',
         'kr-stocks'   => 'cat-kr-stocks',
         'real-estate' => 'cat-real-estate',
-        'market'      => 'cat-market',
+        'daily-news'  => 'cat-daily-news',
+        'deep-dive'   => 'cat-deep-dive',
     ];
     return isset($map[$slug]) ? $map[$slug] : '';
 }
@@ -325,6 +326,18 @@ function moneydive_has_kakao() {
     return defined('MONEYDIVE_KAKAO_JS_KEY') && !empty(MONEYDIVE_KAKAO_JS_KEY);
 }
 
+// ── Google Analytics 4 ──
+define('MONEYDIVE_GA4_ID', 'G-GKDHY8X0ZK');
+
+function moneydive_ga4() {
+    if (empty(MONEYDIVE_GA4_ID)) return;
+    ?>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=<?php echo esc_attr(MONEYDIVE_GA4_ID); ?>"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','<?php echo esc_js(MONEYDIVE_GA4_ID); ?>');</script>
+    <?php
+}
+add_action('wp_head', 'moneydive_ga4', 0);
+
 // ── 필수 페이지 자동 생성 (개인정보처리방침, About) ──
 function moneydive_create_required_pages() {
     $pages = [
@@ -369,3 +382,59 @@ function moneydive_create_required_pages() {
     }
 }
 add_action('init', 'moneydive_create_required_pages');
+
+// ── 뉴스레터 구독 REST API ──
+function moneydive_register_subscribe_endpoint() {
+    register_rest_route('moneydive/v1', '/subscribe', [
+        'methods'  => 'POST',
+        'callback' => 'moneydive_handle_subscribe',
+        'permission_callback' => '__return_true',
+    ]);
+}
+add_action('rest_api_init', 'moneydive_register_subscribe_endpoint');
+
+function moneydive_handle_subscribe($request) {
+    $email = sanitize_email($request->get_param('email'));
+    if (!is_email($email)) {
+        return new WP_REST_Response(['success' => false, 'message' => '올바른 이메일을 입력해주세요.'], 400);
+    }
+    // subscribers 옵션에 저장
+    $subscribers = get_option('moneydive_subscribers', []);
+    if (in_array($email, $subscribers)) {
+        return new WP_REST_Response(['success' => true, 'message' => '이미 구독 중입니다.'], 200);
+    }
+    $subscribers[] = $email;
+    update_option('moneydive_subscribers', $subscribers);
+    return new WP_REST_Response(['success' => true, 'message' => '구독해주셔서 감사합니다!'], 200);
+}
+
+// ── Core Web Vitals: 리소스 힌트 ──
+function moneydive_resource_hints() {
+    // DNS prefetch & preconnect
+    echo '<link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />' . "\n";
+    echo '<link rel="dns-prefetch" href="https://www.googletagmanager.com" />' . "\n";
+    echo '<link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />' . "\n";
+}
+add_action('wp_head', 'moneydive_resource_hints', 0);
+
+// ── Core Web Vitals: 이미지 lazy loading ──
+function moneydive_lazy_load_images($content) {
+    if (is_admin()) return $content;
+    return preg_replace('/<img((?!loading=)[^>]*)>/i', '<img$1 loading="lazy">', $content);
+}
+add_filter('the_content', 'moneydive_lazy_load_images', 99);
+
+// ── Core Web Vitals: 불필요한 헤더 제거 ──
+remove_action('wp_head', 'wp_generator');
+remove_action('wp_head', 'wlwmanifest_link');
+remove_action('wp_head', 'rsd_link');
+remove_action('wp_head', 'wp_shortlink_wp_head');
+remove_action('wp_head', 'rest_output_link_wp_head');
+remove_action('wp_head', 'wp_oembed_add_discovery_links');
+add_filter('emoji_svg_url', '__return_false');
+
+function moneydive_disable_emojis() {
+    remove_action('wp_head', 'print_emoji_detection_script', 7);
+    remove_action('wp_print_styles', 'print_emoji_styles');
+}
+add_action('init', 'moneydive_disable_emojis');
