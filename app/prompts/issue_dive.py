@@ -35,6 +35,10 @@ PICK_ISSUE_PROMPT = """당신은 글로벌 매크로 전략가이자 시니어 �
 중요:
 - 경제 이벤트의 날짜를 추측하지 마세요. 데이터에 명시된 일정만 언급하세요.
 - 반드시 **1개의 이슈만** 선정하세요.
+- 아래 "이미 다룬 주제"를 확인하세요.
+  - 같은 주제를 같은 각도로 반복하지 마세요.
+  - 단, 상황이 급변한 경우(정책 전환, 전쟁 종료/확대, 급락→급등 반전 등)는 새로운 이슈로 선정해도 됩니다.
+  - 후속 보도라도 새로운 팩트나 전개가 없으면 선정하지 마세요.
 
 반드시 아래 JSON 형식으로만 응답하세요:
 {{
@@ -83,9 +87,45 @@ def _build_pick_issue_prompt(scan: MarketScanData, macro: MacroIndicators) -> st
     return "\n".join(parts)
 
 
+def _fetch_recent_issue_titles(days: int = 7) -> list[str]:
+    """최근 N일간 발행된 이슈 딥다이브 제목을 DB에서 가져온다 (동기 방식)."""
+    from datetime import timedelta
+    from sqlalchemy import create_engine, select, text
+    from app.core.config import get_settings
+    from app.core.models import Briefing, BriefingType
+
+    try:
+        db_url = get_settings().database_url
+        # async URL을 sync URL로 변환
+        sync_url = db_url.replace("sqlite+aiosqlite://", "sqlite://")
+        engine = create_engine(sync_url)
+        cutoff = date.today() - timedelta(days=days)
+        with engine.connect() as conn:
+            result = conn.execute(
+                select(Briefing.title).where(
+                    Briefing.briefing_type == BriefingType.ISSUE_DIVE,
+                    Briefing.date >= cutoff,
+                )
+            )
+            titles = [row[0] for row in result.all()]
+        engine.dispose()
+        return titles
+    except Exception as e:
+        logger.warning("최근 이슈 제목 조회 실패: %s", e)
+        return []
+
+
 def pick_top_issue(scan: MarketScanData, macro: MacroIndicators, run_id: str = "") -> dict:
     """LLM #1: 전체 뉴스에서 가장 중요한 이슈 1개를 선정한다."""
     prompt = _build_pick_issue_prompt(scan, macro)
+
+    # 이미 다룬 주제 추가
+    recent_titles = _fetch_recent_issue_titles()
+    if recent_titles:
+        prompt += "\n\n## 이미 다룬 주제 (절대 다시 선정 금지!)\n"
+        for t in recent_titles:
+            prompt += f"- {t}\n"
+
     system_prompt = PICK_ISSUE_PROMPT.replace("{today}", date.today().isoformat())
     provider = get_cli_provider(timeout=120, pipeline="issue_dive", stage="pick_issue", run_id=run_id)
     raw = provider.call(system_prompt, prompt)
@@ -208,13 +248,14 @@ def _build_issue_dive_prompt(
             if n.summary:
                 parts.append(f"  {n.summary[:200]}")
 
-    # 추가 수집 뉴스
+    # 추가 수집 뉴스 (상위 20건으로 제한)
     if additional_news:
-        parts.append(f"\n## 추가 수집 뉴스 ({len(additional_news)}건)")
-        for n in additional_news:
+        capped = additional_news[:20]
+        parts.append(f"\n## 추가 수집 뉴스 ({len(capped)}건)")
+        for n in capped:
             parts.append(f"- {n.title}")
             if n.description:
-                parts.append(f"  {n.description[:200]}")
+                parts.append(f"  {n.description[:150]}")
 
     # 스크리닝 결과
     if screened:

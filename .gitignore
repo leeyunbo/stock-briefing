@@ -16,3 +16,4 @@ service-account.json
 .server.pid
 *.zip
 data/chroma/
+wordpress-theme/
