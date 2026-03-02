@@ -119,7 +119,7 @@ ISSUE_DIVE_STEPS = [
 ]
 
 
-async def run_issue_dive_pipeline(email_to: list[str] | None = None) -> str:
+async def run_issue_dive_pipeline(email_to: list[str] | None = []) -> str:
     """이슈 딥다이브 파이프라인 — 스텝 기반."""
     logger.info("이슈 딥다이브 파이프라인 시작: %s", date.today())
     ctx: IssueDiveContext = {

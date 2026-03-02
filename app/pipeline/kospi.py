@@ -194,7 +194,7 @@ KOSPI_STEPS = [
 # ── 오케스트레이터 ──
 
 
-async def run_pipeline(email_to: list[str] | None = None) -> str:
+async def run_pipeline(email_to: list[str] | None = []) -> str:
     """전체 파이프라인: 수집 → 요약 → 저장 → 발송 — 스텝 기반.
 
     Args:

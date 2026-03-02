@@ -87,7 +87,7 @@ REAL_ESTATE_STEPS = [
 # ── 오케스트레이터 ──
 
 
-async def run_real_estate_pipeline(email_to: list[str] | None = None) -> str:
+async def run_real_estate_pipeline(email_to: list[str] | None = []) -> str:
     """부동산 브리핑 파이프라인 — 스텝 기반."""
     logger.info("부동산 브리핑 파이프라인 시작: %s", date.today())
     ctx: RealEstateContext = {

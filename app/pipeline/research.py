@@ -149,7 +149,7 @@ NEWS_DIVE_STEPS = [
 ]
 
 
-async def run_news_dive_pipeline(email_to: list[str] | None = None) -> str:
+async def run_news_dive_pipeline(email_to: list[str] | None = []) -> str:
     """뉴스 딥다이브 파이프라인 — 스텝 기반."""
     logger.info("뉴스 딥다이브 파이프라인 시작: %s", date.today())
     ctx: NewsDiveContext = {
@@ -168,7 +168,7 @@ async def run_news_dive_pipeline(email_to: list[str] | None = None) -> str:
 # ══════════════════════════════════════════════
 
 
-async def run_deep_research_pipeline(ticker: str, email_to: list[str] | None = None) -> str:
+async def run_deep_research_pipeline(ticker: str, email_to: list[str] | None = []) -> str:
     """개별 종목 딥리서치 파이프라인."""
     logger.info("딥리서치 파이프라인 시작: %s", ticker)
 
