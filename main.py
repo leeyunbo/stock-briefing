@@ -11,6 +11,7 @@ from app.core.database import init_db
 from app.core.http import close_http_client
 from app.routes.archive import router as archive_router
 from app.routes.traces import router as traces_router
+from app.routes.pipelines import router as pipelines_router
 from app.scheduler import start_scheduler
 
 setup_logging()
@@ -29,6 +30,7 @@ app = FastAPI(title="Stock Briefing", lifespan=lifespan)
 
 app.include_router(archive_router)
 app.include_router(traces_router)
+app.include_router(pipelines_router)
 
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next):

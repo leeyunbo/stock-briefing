@@ -291,7 +291,7 @@ def generate_news_dive_report(
     """Stage 4: 뉴스 분석 + 재무지표 + 매크로로 최종 리포트를 생성한다."""
     prompt = _build_news_dive_prompt(analysis, screened, scan, macro)
     system_prompt = NEWS_DIVE_REPORT_PROMPT.replace("{today}", date.today().isoformat())
-    provider = get_cli_provider(timeout=300, pipeline="news_dive", stage="generate_report", run_id=run_id)
+    provider = get_cli_provider(timeout=600, pipeline="news_dive", stage="generate_report", run_id=run_id)
     raw = provider.call(system_prompt, prompt)
     raw = strip_code_block(raw)
     seo = extract_seo_metadata(raw)

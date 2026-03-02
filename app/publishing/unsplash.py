@@ -12,11 +12,12 @@ UNSPLASH_API = "https://api.unsplash.com"
 
 
 async def fetch_unsplash_image(
-    keyword: str,
+    keyword: str | list[str],
     orientation: str = "landscape",
 ) -> tuple[bytes, str, str] | None:
     """키워드로 Unsplash 사진을 검색하고 (image_bytes, download_url, photographer) 반환.
 
+    keyword가 리스트이면 순차적으로 검색하여 첫 번째 결과를 반환한다.
     실패 시 None을 반환한다.
     """
     access_key = get_settings().unsplash_access_key
@@ -24,26 +25,32 @@ async def fetch_unsplash_image(
         logger.info("Unsplash 액세스 키 미설정 — 이미지 검색 건너뜀")
         return None
 
+    # 리스트가 아니면 리스트로 변환
+    keywords = keyword if isinstance(keyword, list) else [keyword]
+    keywords = [k for k in keywords if k]  # 빈 문자열 제거
+    if not keywords:
+        return None
+
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            # 사진 검색
-            resp = await client.get(
-                f"{UNSPLASH_API}/search/photos",
-                params={
-                    "query": keyword,
-                    "per_page": 1,
-                    "orientation": orientation,
-                },
-                headers={"Authorization": f"Client-ID {access_key}"},
-            )
+            results = []
+            tried = []
 
-            if resp.status_code != 200:
-                logger.warning("Unsplash 검색 실패: status=%s", resp.status_code)
-                return None
+            for kw in keywords:
+                resp = await client.get(
+                    f"{UNSPLASH_API}/search/photos",
+                    params={"query": kw, "per_page": 1, "orientation": orientation},
+                    headers={"Authorization": f"Client-ID {access_key}"},
+                )
+                tried.append(kw)
+                if resp.status_code == 200:
+                    results = resp.json().get("results", [])
+                    if results:
+                        logger.info("Unsplash 검색 성공: '%s' (시도: %s)", kw, tried)
+                        break
 
-            results = resp.json().get("results", [])
             if not results:
-                logger.warning("Unsplash 검색 결과 없음: keyword=%s", keyword)
+                logger.warning("Unsplash 검색 결과 없음: keywords=%s", tried)
                 return None
 
             photo = results[0]

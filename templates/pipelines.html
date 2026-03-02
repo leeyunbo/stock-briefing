@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipelines - Stock Briefing</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f7f8fa;
+            color: #191f28;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
+        }
+        .header h1 {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            color: #191f28;
+        }
+        .header .subtitle {
+            font-size: 14px;
+            color: #8b95a1;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+        .back-link {
+            color: #8b95a1;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.15s;
+        }
+        .back-link:hover { color: #3182f6; }
+
+        /* Pipeline cards */
+        .pipeline-card {
+            background: #fff;
+            border: 1px solid #e5e8eb;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 12px;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .pipeline-card:hover {
+            border-color: #d1d6db;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+        .card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .card-info { flex: 1; }
+        .card-name {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: #191f28;
+            margin-bottom: 6px;
+        }
+        .card-desc {
+            font-size: 14px;
+            color: #6b7684;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .card-schedule {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #8b95a1;
+            background: #f2f4f6;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+        .today-runs {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .today-label {
+            font-size: 12px;
+            color: #8b95a1;
+            font-weight: 500;
+        }
+        .today-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: opacity 0.15s;
+        }
+        .today-chip:hover { opacity: 0.75; }
+        .today-chip.success {
+            background: #e8faf0;
+            color: #00b853;
+        }
+        .today-chip.fail {
+            background: #fff0f0;
+            color: #f04452;
+        }
+        .today-none {
+            font-size: 12px;
+            color: #b0b8c1;
+            margin-top: 10px;
+        }
+        .publish-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: opacity 0.15s;
+        }
+        .publish-status:hover { opacity: 0.75; }
+        .publish-status.published {
+            background: #e8f3ff;
+            color: #3182f6;
+        }
+        .publish-status.not-published {
+            background: #fff8e1;
+            color: #e67e22;
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+        }
+        .publish-status.not-published:hover {
+            background: #fff0c2;
+        }
+        .publish-status:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Run button */
+        .run-btn {
+            flex-shrink: 0;
+            padding: 10px 22px;
+            border: none;
+            border-radius: 10px;
+            background: #3182f6;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: opacity 0.15s, background 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .run-btn:hover { opacity: 0.85; }
+        .run-btn:disabled {
+            background: #b0b8c1;
+            cursor: not-allowed;
+            opacity: 1;
+        }
+
+        /* Spinner */
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Status bar */
+        .status-bar {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .status-bar.running {
+            display: flex;
+            background: #e8f3ff;
+            color: #3182f6;
+        }
+        .status-bar.done {
+            display: flex;
+            background: #e8faf0;
+            color: #00b853;
+        }
+        .status-bar.error {
+            display: flex;
+            background: #fff0f0;
+            color: #f04452;
+        }
+        .status-bar .spinner-sm {
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(49,130,246,0.25);
+            border-top-color: #3182f6;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        .status-bar a {
+            color: inherit;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .status-bar a:hover { text-decoration: underline; }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .pipeline-card { animation: fadeIn 0.4s ease both; }
+
+        @media (max-width: 700px) {
+            .container { padding: 32px 16px 60px; }
+            .pipeline-card { padding: 18px; }
+            .card-top { flex-direction: column; }
+            .run-btn { align-self: stretch; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Pipelines</h1>
+                <div class="subtitle">파이프라인 수동 실행</div>
+            </div>
+            <a class="back-link" href="/traces">Traces →</a>
+        </div>
+
+        {% for p in pipelines %}
+        <div class="pipeline-card" id="card-{{ p.id }}" style="animation-delay: {{ loop.index0 * 0.05 }}s">
+            <div class="card-top">
+                <div class="card-info">
+                    <div class="card-name">{{ p.name }}</div>
+                    <div class="card-desc">{{ p.description }}</div>
+                    <span class="card-schedule">🕐 {{ p.schedule }}</span>
+                    {% set runs = today_runs.get(p.id) %}
+                    {% if runs %}
+                    <div class="today-runs">
+                        <span class="today-label">오늘</span>
+                        {% for r in runs %}
+                        <a class="today-chip {{ 'success' if r.success else 'fail' }}" href="/traces/run/{{ r.run_id }}">
+                            {{ r.time }} {{ '✓' if r.success else '✗' }}
+                        </a>
+                        {% endfor %}
+                        {% if published.get(p.id) %}
+                        <a class="publish-status published" href="{{ published[p.id] }}" target="_blank">블로그 발행됨</a>
+                        {% else %}
+                        <button class="publish-status not-published" id="pub-{{ p.id }}" onclick="republish('{{ p.id }}')">블로그 미발행 — 재발행</button>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="today-none">오늘 미실행</div>
+                    {% endif %}
+                </div>
+                <button class="run-btn" id="btn-{{ p.id }}" onclick="runPipeline('{{ p.id }}')">
+                    실행
+                </button>
+            </div>
+            <div class="status-bar" id="status-{{ p.id }}"></div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        let polling = null;
+
+        function runPipeline(id) {
+            const btn = document.getElementById('btn-' + id);
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>실행 중…';
+
+            const bar = document.getElementById('status-' + id);
+            bar.className = 'status-bar running';
+            bar.innerHTML = '<span class="spinner-sm"></span>파이프라인 실행 중…';
+
+            fetch('/pipelines/' + id + '/run', { method: 'POST' })
+                .then(r => {
+                    if (r.status === 409) {
+                        bar.className = 'status-bar error';
+                        bar.textContent = '이미 실행 중입니다.';
+                        resetBtn(id);
+                        return;
+                    }
+                    if (!r.ok) throw new Error('요청 실패');
+                    startPolling();
+                })
+                .catch(err => {
+                    bar.className = 'status-bar error';
+                    bar.textContent = '실행 요청 실패: ' + err.message;
+                    resetBtn(id);
+                });
+        }
+
+        function resetBtn(id) {
+            const btn = document.getElementById('btn-' + id);
+            btn.disabled = false;
+            btn.textContent = '실행';
+        }
+
+        function startPolling() {
+            if (polling) return;
+            polling = setInterval(pollStatus, 3000);
+            pollStatus();
+        }
+
+        function pollStatus() {
+            fetch('/pipelines/status')
+                .then(r => r.json())
+                .then(data => {
+                    let anyRunning = false;
+                    for (const [id, state] of Object.entries(data)) {
+                        const bar = document.getElementById('status-' + id);
+                        const btn = document.getElementById('btn-' + id);
+                        if (!bar || !btn) continue;
+
+                        if (state.status === 'running') {
+                            anyRunning = true;
+                            btn.disabled = true;
+                            btn.innerHTML = '<span class="spinner"></span>실행 중…';
+                            bar.className = 'status-bar running';
+                            bar.innerHTML = '<span class="spinner-sm"></span>파이프라인 실행 중…';
+                        } else if (state.status === 'done') {
+                            resetBtn(id);
+                            bar.className = 'status-bar done';
+                            bar.innerHTML = '완료 — <a href="/traces/run/' + state.run_id + '">traces에서 확인</a>';
+                        } else if (state.status === 'error') {
+                            resetBtn(id);
+                            bar.className = 'status-bar error';
+                            bar.textContent = '실패: ' + (state.error || '알 수 없는 오류');
+                        }
+                    }
+                    if (!anyRunning && polling) {
+                        clearInterval(polling);
+                        polling = null;
+                    }
+                });
+        }
+
+        function republish(id) {
+            const btn = document.getElementById('pub-' + id);
+            btn.disabled = true;
+            btn.textContent = '발행 중…';
+
+            fetch('/pipelines/' + id + '/republish', { method: 'POST' })
+                .then(r => r.json().then(data => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    if (ok) {
+                        btn.className = 'publish-status published';
+                        btn.onclick = null;
+                        btn.disabled = false;
+                        if (data.urls && data.urls[0]) {
+                            btn.outerHTML = '<a class="publish-status published" href="' + data.urls[0] + '" target="_blank">블로그 발행됨</a>';
+                        } else {
+                            btn.textContent = '블로그 발행됨';
+                        }
+                    } else {
+                        btn.disabled = false;
+                        btn.textContent = '발행 실패 — 재시도';
+                    }
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    btn.textContent = '발행 실패 — 재시도';
+                });
+        }
+
+        // 페이지 로드 시 이미 실행 중인 작업이 있으면 폴링 시작
+        fetch('/pipelines/status')
+            .then(r => r.json())
+            .then(data => {
+                if (Object.values(data).some(s => s.status === 'running')) {
+                    startPolling();
+                }
+            });
+    </script>
+</body>
+</html>

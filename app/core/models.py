@@ -36,6 +36,10 @@ class Briefing(Base):
     content_html: Mapped[str] = mapped_column(Text)
     blog_url: Mapped[str] = mapped_column(String(500), default="")
     excerpt: Mapped[str] = mapped_column(String(500), default="")
+    slug: Mapped[str] = mapped_column(String(200), default="")
+    tags: Mapped[str] = mapped_column(String(500), default="")
+    focus_keyword: Mapped[str] = mapped_column(String(100), default="")
+    image_keyword: Mapped[str] = mapped_column(String(100), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
 

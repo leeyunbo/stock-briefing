@@ -109,12 +109,87 @@ async def generate_article(ctx: IssueDiveContext) -> None:
     ctx["result"] = result
 
 
+async def render_charts(ctx: IssueDiveContext) -> None:
+    """Stage 6: 본문의 차트 지시자를 실제 차트 이미지로 교체한다."""
+    from app.publishing.chart import parse_chart_directives, render_chart
+    from app.publishing.wordpress import _upload_media, _slugify
+
+    import base64
+    import httpx
+    from app.core.config import get_settings
+
+    result: BriefingResult = ctx["result"]
+    directives = parse_chart_directives(result.html)
+
+    if not directives:
+        logger.info("[이슈딥다이브 Stage 6] 차트 지시자 없음 — 스킵")
+        return
+
+    logger.info("[이슈딥다이브 Stage 6] %d개 차트 렌더링 중...", len(directives))
+
+    # WordPress 인증 (이미지 업로드용)
+    wp_url = get_settings().wp_url
+    wp_user = get_settings().wp_user
+    wp_pass = get_settings().wp_app_password
+    has_wp = bool(wp_url and wp_user and wp_pass)
+
+    if has_wp:
+        credentials = f"{wp_user}:{wp_pass}"
+        token = base64.b64encode(credentials.encode()).decode()
+        wp_headers = {"Authorization": f"Basic {token}"}
+
+    html = result.html
+    chart_count = 0
+
+    for i, directive in enumerate(directives):
+        chart_bytes = await to_thread(render_chart, directive)
+        if not chart_bytes:
+            # 렌더링 실패 시 지시자 제거
+            html = html.replace(directive["placeholder"], "")
+            continue
+
+        title_text = directive["params"].get("title", f"chart-{i}")
+
+        if has_wp:
+            # WordPress에 업로드
+            async with httpx.AsyncClient(timeout=30, headers=wp_headers) as client:
+                filename = f"{_slugify(result.title)}-chart-{i}.png"
+                upload = await _upload_media(client, chart_bytes, filename, alt_text=title_text)
+                if upload:
+                    _, img_url = upload
+                    img_tag = (
+                        f'<figure style="margin:1.5rem 0;">'
+                        f'<img src="{img_url}" alt="{title_text}" '
+                        f'style="width:100%;height:auto;border-radius:12px;" />'
+                        f'</figure>'
+                    )
+                    html = html.replace(directive["placeholder"], img_tag)
+                    chart_count += 1
+                    continue
+
+        # WordPress 없으면 base64 인라인 (개발용)
+        import base64 as b64
+        b64_data = b64.b64encode(chart_bytes).decode()
+        img_tag = (
+            f'<figure style="margin:1.5rem 0;">'
+            f'<img src="data:image/png;base64,{b64_data}" alt="{title_text}" '
+            f'style="width:100%;height:auto;border-radius:12px;" />'
+            f'</figure>'
+        )
+        html = html.replace(directive["placeholder"], img_tag)
+        chart_count += 1
+
+    result.html = html
+    logger.info("[이슈딥다이브 Stage 6] %d개 차트 삽입 완료", chart_count)
+
+
 ISSUE_DIVE_STEPS = [
     collect_market_data,
     dedup_issue_news,
     pick_issue,
     research_issue,
     generate_article,
+    render_charts,
     deliver,
 ]
 

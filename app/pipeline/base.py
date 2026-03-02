@@ -32,7 +32,7 @@ class BriefingResult:
     excerpt: str = ""
     tags: list[str] = field(default_factory=list)
     focus_keyword: str = ""
-    image_keyword: str = ""
+    image_keyword: str | list[str] = ""
 
 
 # ── 파이프라인 컨텍스트 타입 ──
@@ -75,12 +75,18 @@ class DBPublisher:
 
     async def publish(self, result: BriefingResult, briefing_type: str, **kwargs) -> dict:
         today = date.today()
+        seo_fields = dict(
+            slug=result.slug or "",
+            tags=",".join(result.tags) if result.tags else "",
+            focus_keyword=result.focus_keyword or "",
+            image_keyword=",".join(result.image_keyword) if isinstance(result.image_keyword, list) else (result.image_keyword or ""),
+        )
         async with async_session() as db:
             if briefing_type in self._MULTI_PER_DAY:
                 briefing = Briefing(
                     date=today, briefing_type=briefing_type,
                     title=result.title, content_html=result.html,
-                    excerpt=result.excerpt or "",
+                    excerpt=result.excerpt or "", **seo_fields,
                 )
                 db.add(briefing)
             else:
@@ -92,11 +98,13 @@ class DBPublisher:
                     briefing.title = result.title
                     briefing.content_html = result.html
                     briefing.excerpt = result.excerpt or ""
+                    for k, v in seo_fields.items():
+                        setattr(briefing, k, v)
                 else:
                     briefing = Briefing(
                         date=today, briefing_type=briefing_type,
                         title=result.title, content_html=result.html,
-                        excerpt=result.excerpt or "",
+                        excerpt=result.excerpt or "", **seo_fields,
                     )
                     db.add(briefing)
             await db.flush()

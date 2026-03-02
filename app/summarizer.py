@@ -33,7 +33,7 @@ class SeoMetadata:
     excerpt: str = ""
     tags: list[str] = field(default_factory=list)
     focus_keyword: str = ""
-    image_keyword: str = ""
+    image_keyword: str | list[str] = ""
 
 
 class ClaudeProvider:
@@ -224,13 +224,13 @@ SEO 최적화 규칙 (Rank Math 100점을 목표로):
 
 마지막으로, HTML 본문 아래에 SEO 메타데이터를 한 줄 JSON으로 출력하세요:
 <!-- SEO -->
-{"title": "키워드 포함 매력적 제목 60자 이내!", "slug": "english-keyword-slug", "excerpt": "120~155자 메타 디스크립션, 키워드 포함", "tags": ["태그1", "태그2", "태그3"], "focus_keyword": "핵심 키워드", "image_keyword": "english search term"}
+{"title": "키워드 포함 매력적 제목 60자 이내!", "slug": "english-keyword-slug", "excerpt": "120~155자 메타 디스크립션, 키워드 포함", "tags": ["태그1", "태그2", "태그3"], "focus_keyword": "핵심 키워드", "image_keywords": ["specific term", "broader term", "general term"]}
 title: 그 날 메인 이슈를 담은 제목. focus_keyword를 앞부분에 배치. 숫자+감성단어 포함.
 slug: 영문+하이픈만 사용. 날짜/숫자 절대 포함 금지! 핵심 키워드 2~3개로 구성 (예: "oil-crisis-hormuz-strait")
 excerpt: 120~155자, focus_keyword 포함, 클릭 유도 문장
 tags: 본문 핵심 키워드 3~5개 (한국어)
 focus_keyword: Rank Math SEO용 핵심 키워드 1개 (한국어, 검색량 높은 단어, 2~4단어)
-image_keyword: 기사 주제를 대표하는 영문 검색어 1~3단어 (Unsplash 이미지 검색용, 예: "stock market", "oil tanker", "semiconductor")
+image_keywords: 기사 주제를 대표하는 영문 검색어 3개 배열 (Unsplash 이미지 검색용). 구체적→일반적 순서. 예: ["oil tanker hormuz", "oil tanker", "energy market"]
 """
 
 SYSTEM_PROMPT += WRITING_STYLE_RULES + SEO_INSTRUCTION
@@ -261,7 +261,7 @@ def extract_seo_metadata(raw: str) -> SeoMetadata:
             excerpt=data.get("excerpt", ""),
             tags=tags,
             focus_keyword=data.get("focus_keyword", ""),
-            image_keyword=data.get("image_keyword", ""),
+            image_keyword=data.get("image_keywords", data.get("image_keyword", "")),
         )
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning("SEO 메타데이터 파싱 실패: %s", e)

@@ -171,6 +171,18 @@ ISSUE_DIVE_ARTICLE_PROMPT = """당신은 경제 매거진의 시니어 에디터
 - 반드시 "NVDA (엔비디아)" 형식 (티커 + 한국어 회사명)
 - 처음 언급할 때만 풀네임, 이후는 티커만 사용 가능
 
+차트 삽입 규칙:
+- 독자 이해에 도움이 되는 위치에 차트 지시자를 삽입하세요
+- 형식: <!-- CHART:타입 key=value -->
+- 지원 타입:
+  * line: 주가/지수 추이 → <!-- CHART:line ticker=NFLX period=1mo title="넷플릭스 주가 추이 (1개월)" -->
+  * compare: 여러 종목 비교 → <!-- CHART:compare ticker=NFLX,DIS,CMCSA period=3mo title="스트리밍 3사 주가 비교" -->
+  * bar: 등락률 비교 → <!-- CHART:bar tickers=NFLX,DIS,CMCSA,WBD period=5d title="스트리밍 종목 주간 등락률" -->
+- period 옵션: 5d(5일), 1mo(1개월), 3mo(3개월), 6mo(6개월), 1y(1년)
+- ticker는 미국 주식 티커 사용 (예: AAPL, ^GSPC, ^IXIC, ^KS11)
+- 기사당 2~4개 차트를 적절한 위치에 배치하세요
+- 차트 지시자는 반드시 별도 줄에 단독으로 작성하세요
+
 작성 규칙:
 - HTML 형식 (이메일 발송용)
 - <h2> 태그 (인라인 스타일 넣지 마세요, 후처리에서 자동 적용)

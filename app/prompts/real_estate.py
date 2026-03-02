@@ -103,7 +103,7 @@ def _build_real_estate_prompt(data: RealEstateData) -> str:
 def generate_real_estate_report(data: RealEstateData, run_id: str = "") -> BriefingResult:
     """Claude에게 부동산 브리핑 리포트 생성을 요청한다."""
     prompt = _build_real_estate_prompt(data)
-    provider = get_cli_provider(timeout=300, pipeline="real_estate", stage="generate_report", run_id=run_id)
+    provider = get_cli_provider(timeout=600, pipeline="real_estate", stage="generate_report", run_id=run_id)
     raw = provider.call(REAL_ESTATE_REPORT_PROMPT, prompt)
     raw = strip_code_block(raw)
     seo = extract_seo_metadata(raw)

@@ -178,7 +178,7 @@ def _build_research_prompt(data: StockResearchData) -> str:
 def summarize_research(data: StockResearchData, run_id: str = "") -> BriefingResult:
     """딥 리서치 데이터로 개별 종목 보고서를 생성한다."""
     prompt = _build_research_prompt(data)
-    provider = get_cli_provider(timeout=300, pipeline="deep_research", stage="summarize", run_id=run_id)
+    provider = get_cli_provider(timeout=600, pipeline="deep_research", stage="summarize", run_id=run_id)
     raw = provider.call(RESEARCH_SYSTEM_PROMPT, prompt)
     raw = strip_code_block(raw)
     seo = extract_seo_metadata(raw)

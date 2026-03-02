@@ -213,7 +213,7 @@ async def publish_to_wordpress(
             if tags:
                 tag_ids = await _resolve_tag_ids(client, tags)
 
-            # OG 이미지 업로드 → featured_media
+            # OG 이미지 업로드 (Rank Math SEO용)
             featured_media_id = None
             og_image_url = ""
             if og_image:
@@ -225,7 +225,7 @@ async def publish_to_wordpress(
                 if upload_result:
                     featured_media_id, og_image_url = upload_result
 
-            # Unsplash 이미지 업로드 → 본문 상단에 삽입
+            # Unsplash 이미지 업로드 → 대표 이미지 + 본문 상단 삽입
             content_html = html
             if unsplash_image:
                 img_bytes, _img_url, photographer = unsplash_image
@@ -235,7 +235,10 @@ async def publish_to_wordpress(
                     alt_text=focus_keyword or title,
                 )
                 if unsplash_upload:
-                    _, unsplash_src = unsplash_upload
+                    unsplash_media_id, unsplash_src = unsplash_upload
+                    # Unsplash 이미지를 대표 이미지 + OG 이미지로 설정
+                    featured_media_id = unsplash_media_id
+                    og_image_url = unsplash_src
                     alt = focus_keyword or title
                     content_html = (
                         f'<figure style="margin:0 0 1.5rem;">'
@@ -301,3 +304,96 @@ async def publish_to_wordpress(
     except httpx.HTTPError as e:
         logger.error("WordPress 요청 실패: %s", e)
         return None
+
+
+async def fix_featured_images() -> dict:
+    """기존 글의 featured_media를 본문 Unsplash 이미지로 교체한다.
+
+    본문에 unsplash 이미지가 있고, featured_media가 OG 이미지(-og.png)인
+    포스트를 찾아 일괄 수정한다.
+    """
+    if not get_settings().wp_url or not get_settings().wp_user or not get_settings().wp_app_password:
+        return {"error": "WordPress 설정 미완료"}
+
+    credentials = f"{get_settings().wp_user}:{get_settings().wp_app_password}"
+    token = base64.b64encode(credentials.encode()).decode()
+    headers = {"Authorization": f"Basic {token}"}
+
+    fixed = []
+    errors = []
+
+    try:
+        async with httpx.AsyncClient(timeout=30, headers=headers) as client:
+            # 전체 포스트 목록 (최대 100건)
+            page = 1
+            all_posts = []
+            while True:
+                resp = await client.get(
+                    f"{get_settings().wp_url}/wp-json/wp/v2/posts",
+                    params={"per_page": 100, "page": page, "status": "publish"},
+                )
+                if resp.status_code != 200:
+                    break
+                posts = resp.json()
+                if not posts:
+                    break
+                all_posts.extend(posts)
+                page += 1
+
+            for post in all_posts:
+                post_id = post["id"]
+                content = post.get("content", {}).get("rendered", "")
+
+                # 본문에서 Unsplash 이미지 URL 추출
+                match = re.search(
+                    r'<img[^>]+src="([^"]*-unsplash[^"]*)"', content
+                )
+                if not match:
+                    continue
+
+                unsplash_url = match.group(1)
+
+                # 현재 featured_media 확인 — 이미 Unsplash면 스킵
+                featured_id = post.get("featured_media", 0)
+                if featured_id:
+                    media_resp = await client.get(
+                        f"{get_settings().wp_url}/wp-json/wp/v2/media/{featured_id}",
+                    )
+                    if media_resp.status_code == 200:
+                        current_url = media_resp.json().get("source_url", "")
+                        if "unsplash" in current_url:
+                            continue  # 이미 Unsplash 이미지가 대표 이미지
+
+                # Unsplash 이미지의 media ID 찾기
+                # 파일명으로 미디어 검색
+                filename = unsplash_url.rsplit("/", 1)[-1]
+                search_resp = await client.get(
+                    f"{get_settings().wp_url}/wp-json/wp/v2/media",
+                    params={"search": filename.split(".")[0], "per_page": 5},
+                )
+                unsplash_media_id = None
+                if search_resp.status_code == 200:
+                    for media in search_resp.json():
+                        if "unsplash" in media.get("source_url", ""):
+                            unsplash_media_id = media["id"]
+                            break
+
+                if not unsplash_media_id:
+                    errors.append({"post_id": post_id, "title": post["title"]["rendered"], "reason": "미디어 못 찾음"})
+                    continue
+
+                # featured_media 업데이트
+                update_resp = await client.post(
+                    f"{get_settings().wp_url}/wp-json/wp/v2/posts/{post_id}",
+                    json={"featured_media": unsplash_media_id},
+                )
+                if update_resp.status_code == 200:
+                    fixed.append({"post_id": post_id, "title": post["title"]["rendered"]})
+                    logger.info("대표 이미지 교체: post_id=%d", post_id)
+                else:
+                    errors.append({"post_id": post_id, "title": post["title"]["rendered"], "reason": f"status {update_resp.status_code}"})
+
+    except httpx.HTTPError as e:
+        return {"error": str(e)}
+
+    return {"fixed": len(fixed), "errors": len(errors), "details": fixed, "error_details": errors}
