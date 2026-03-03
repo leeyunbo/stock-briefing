@@ -1,0 +1,347 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36" version="29.6.0">
+  <diagram id="arch" name="Stock Briefing Architecture">
+    <mxGraphModel dx="1571" dy="594" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;fontFamily=Helvetica;fontColor=#191F28;" value="Stock Briefing — System Architecture" vertex="1">
+          <mxGeometry height="32" width="500" x="280" y="8" as="geometry" />
+        </mxCell>
+        <mxCell id="L1_bg" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#C9CDD2;strokeWidth=2;arcSize=4;" value="" vertex="1">
+          <mxGeometry height="135" width="1080" y="48" as="geometry" />
+        </mxCell>
+        <mxCell id="L1_badge" parent="1" style="ellipse;fillColor=#4E5968;strokeColor=none;fontColor=#FFF;fontSize=12;fontStyle=1;align=center;verticalAlign=middle;" value="1" vertex="1">
+          <mxGeometry height="24" width="24" x="12" y="54" as="geometry" />
+        </mxCell>
+        <mxCell id="L1_title" parent="1" style="text;fontSize=13;fontStyle=1;fontColor=#4E5968;letterSpacing=1;" value="EXTERNAL DATA SOURCES" vertex="1">
+          <mxGeometry height="22" width="240" x="42" y="55" as="geometry" />
+        </mxCell>
+        <mxCell id="kr_box" parent="1" style="rounded=1;fillColor=#E8FAF0;strokeColor=#00B853;strokeWidth=1.5;arcSize=8;" value="" vertex="1">
+          <mxGeometry height="90" width="365" x="15" y="84" as="geometry" />
+        </mxCell>
+        <mxCell id="kr_label" parent="1" style="text;fontSize=11;fontStyle=1;fontColor=#00B853;" value="KR" vertex="1">
+          <mxGeometry height="16" width="30" x="24" y="87" as="geometry" />
+        </mxCell>
+        <mxCell id="ds_naver" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#00B853;fontSize=11;whiteSpace=wrap;" value="Naver Finance" vertex="1">
+          <mxGeometry height="44" width="100" x="24" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="ds_news" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#00B853;fontSize=11;whiteSpace=wrap;" value="Naver News" vertex="1">
+          <mxGeometry height="44" width="90" x="132" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="ds_dart" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#00B853;fontSize=11;whiteSpace=wrap;" value="DART" vertex="1">
+          <mxGeometry height="44" width="60" x="230" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="ds_apply" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#00B853;fontSize=11;whiteSpace=wrap;" value="ApplyHome" vertex="1">
+          <mxGeometry height="44" width="74" x="298" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="us_box" parent="1" style="rounded=1;fillColor=#E8F3FF;strokeColor=#3182F6;strokeWidth=1.5;arcSize=8;" value="" vertex="1">
+          <mxGeometry height="90" width="310" x="395" y="84" as="geometry" />
+        </mxCell>
+        <mxCell id="us_label" parent="1" style="text;fontSize=11;fontStyle=1;fontColor=#3182F6;" value="US" vertex="1">
+          <mxGeometry height="16" width="25" x="404" y="87" as="geometry" />
+        </mxCell>
+        <mxCell id="ds_finnhub" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#3182F6;fontSize=11;whiteSpace=wrap;" value="Finnhub" vertex="1">
+          <mxGeometry height="44" width="88" x="404" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="ds_yfinance" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#3182F6;fontSize=11;whiteSpace=wrap;" value="yfinance" vertex="1">
+          <mxGeometry height="44" width="80" x="500" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="ds_sec" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#3182F6;fontSize=11;whiteSpace=wrap;" value="SEC EDGAR" vertex="1">
+          <mxGeometry height="44" width="90" x="588" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_box" parent="1" style="rounded=1;fillColor=#F5E6FF;strokeColor=#9B59B6;strokeWidth=1.5;arcSize=8;" value="" vertex="1">
+          <mxGeometry height="90" width="345" x="720" y="84" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_label" parent="1" style="text;fontSize=11;fontStyle=1;fontColor=#9B59B6;" value="AI / LLM" vertex="1">
+          <mxGeometry height="16" width="60" x="730" y="87" as="geometry" />
+        </mxCell>
+        <mxCell id="ds_claude" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#9B59B6;fontSize=11;whiteSpace=wrap;" value="Claude API" vertex="1">
+          <mxGeometry height="44" width="95" x="730" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="ds_gemini" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#9B59B6;fontSize=11;whiteSpace=wrap;" value="Gemini API&#xa;(Gen + Embed)" vertex="1">
+          <mxGeometry height="44" width="105" x="833" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="ds_cli" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#9B59B6;fontSize=11;whiteSpace=wrap;" value="Claude CLI" vertex="1">
+          <mxGeometry height="44" width="95" x="946" y="108" as="geometry" />
+        </mxCell>
+        <mxCell id="dep12" edge="1" parent="1" source="L1_bg" style="endArrow=block;endFill=1;strokeColor=#8B95A1;strokeWidth=3;endSize=10;fontSize=12;fontStyle=1;fontColor=#4E5968;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="L2_bg" value="HTTP / API 호출">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="L2_bg" parent="1" style="rounded=1;fillColor=#FAFBFC;strokeColor=#C9CDD2;strokeWidth=2;arcSize=4;" value="" vertex="1">
+          <mxGeometry height="108" width="1080" y="221" as="geometry" />
+        </mxCell>
+        <mxCell id="L2_badge" parent="1" style="ellipse;fillColor=#4E5968;strokeColor=none;fontColor=#FFF;fontSize=12;fontStyle=1;align=center;verticalAlign=middle;" value="2" vertex="1">
+          <mxGeometry height="24" width="24" x="12" y="227" as="geometry" />
+        </mxCell>
+        <mxCell id="L2_title" parent="1" style="text;fontSize=13;fontStyle=1;fontColor=#4E5968;letterSpacing=1;" value="COLLECTORS   app/collector/" vertex="1">
+          <mxGeometry height="22" width="300" x="42" y="228" as="geometry" />
+        </mxCell>
+        <mxCell id="L2_box" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#E5E8EB;strokeWidth=1.5;arcSize=6;" value="" vertex="1">
+          <mxGeometry height="66" width="1056" x="12" y="255" as="geometry" />
+        </mxCell>
+        <mxCell id="c1" parent="1" style="rounded=1;fillColor=#E8FAF0;strokeColor=#B8E6C8;fontSize=10;fontStyle=1;" value="market.py" vertex="1">
+          <mxGeometry height="42" width="82" x="20" y="263" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" parent="1" style="rounded=1;fillColor=#E8F3FF;strokeColor=#B8D4F6;fontSize=10;fontStyle=1;" value="nasdaq.py" vertex="1">
+          <mxGeometry height="42" width="82" x="108" y="263" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" parent="1" style="rounded=1;fillColor=#E8F3FF;strokeColor=#B8D4F6;fontSize=10;fontStyle=1;" value="market_scan.py" vertex="1">
+          <mxGeometry height="42" width="94" x="196" y="263" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" parent="1" style="rounded=1;fillColor=#E8FAF0;strokeColor=#B8E6C8;fontSize=10;fontStyle=1;" value="news.py" vertex="1">
+          <mxGeometry height="42" width="68" x="295" y="263" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" parent="1" style="rounded=1;fillColor=#E8F3FF;strokeColor=#B8D4F6;fontSize=10;fontStyle=1;" value="stock_research.py" vertex="1">
+          <mxGeometry height="42" width="98" x="372" y="263" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" parent="1" style="rounded=1;fillColor=#E8FAF0;strokeColor=#B8E6C8;fontSize=10;fontStyle=1;" value="kr_stock_research.py" vertex="1">
+          <mxGeometry height="42" width="118" x="477" y="263" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" parent="1" style="rounded=1;fillColor=#E8FAF0;strokeColor=#B8E6C8;fontSize=10;fontStyle=1;" value="dart.py" vertex="1">
+          <mxGeometry height="42" width="58" x="604" y="263" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" parent="1" style="rounded=1;fillColor=#FFF8E1;strokeColor=#F5DEB3;fontSize=10;fontStyle=1;" value="real_estate.py" vertex="1">
+          <mxGeometry height="42" width="92" x="670" y="263" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" parent="1" style="rounded=1;fillColor=#F5E6FF;strokeColor=#D4B8F0;fontSize=10;fontStyle=1;" value="dedup.py" vertex="1">
+          <mxGeometry height="42" width="72" x="860" y="263" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#D1D6DB;fontSize=10;fontStyle=1;" value="snapshot.py" vertex="1">
+          <mxGeometry height="42" width="82" x="770" y="263" as="geometry" />
+        </mxCell>
+        <mxCell id="chromadb" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#F5E6FF;strokeColor=#9B59B6;fontSize=9;fontColor=#9B59B6;fontStyle=1;" value="ChromaDB&#xa;+ Gemini Embed" vertex="1">
+          <mxGeometry height="48" width="92" x="968" y="259" as="geometry" />
+        </mxCell>
+        <mxCell id="chroma_edge" edge="1" parent="1" source="c9" style="endArrow=classic;strokeColor=#D4B8F0;strokeWidth=1.5;dashed=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="chromadb" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dep23" edge="1" parent="1" source="L2_bg" style="endArrow=block;endFill=1;strokeColor=#8B95A1;strokeWidth=3;endSize=10;fontSize=12;fontStyle=1;fontColor=#4E5968;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="L3_bg" value="수집 데이터 (Pydantic Models)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="L3_bg" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#C9CDD2;strokeWidth=2;arcSize=4;" value="" vertex="1">
+          <mxGeometry height="118" width="1080" y="367" as="geometry" />
+        </mxCell>
+        <mxCell id="L3_badge" parent="1" style="ellipse;fillColor=#4E5968;strokeColor=none;fontColor=#FFF;fontSize=12;fontStyle=1;align=center;verticalAlign=middle;" value="3" vertex="1">
+          <mxGeometry height="24" width="24" x="12" y="373" as="geometry" />
+        </mxCell>
+        <mxCell id="L3_title" parent="1" style="text;fontSize=13;fontStyle=1;fontColor=#4E5968;letterSpacing=1;" value="PIPELINES   app/pipeline/" vertex="1">
+          <mxGeometry height="22" width="280" x="42" y="374" as="geometry" />
+        </mxCell>
+        <mxCell id="p1" parent="1" style="rounded=1;fillColor=#E8FAF0;strokeColor=#00B853;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="KOSPI 브리핑&#xa;화~토 07:00" vertex="1">
+          <mxGeometry height="66" width="125" x="12" y="401" as="geometry" />
+        </mxCell>
+        <mxCell id="p2" parent="1" style="rounded=1;fillColor=#E8F3FF;strokeColor=#3182F6;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="NASDAQ 브리핑&#xa;화~토 08:00" vertex="1">
+          <mxGeometry height="66" width="130" x="145" y="401" as="geometry" />
+        </mxCell>
+        <mxCell id="p3" parent="1" style="rounded=1;fillColor=#F5E6FF;strokeColor=#9B59B6;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="뉴스 딥다이브&#xa;매일 09:00" vertex="1">
+          <mxGeometry height="66" width="120" x="283" y="401" as="geometry" />
+        </mxCell>
+        <mxCell id="p4" parent="1" style="rounded=1;fillColor=#FFF0E6;strokeColor=#E67E22;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="이슈 딥다이브&#xa;매일 10/15/21시&#xa;LLM x2" vertex="1">
+          <mxGeometry height="66" width="132" x="411" y="401" as="geometry" />
+        </mxCell>
+        <mxCell id="p5" parent="1" style="rounded=1;fillColor=#E0F7F7;strokeColor=#1ABC9C;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="주식 딥다이브&#xa;매일 11:00&#xa;LLM x2" vertex="1">
+          <mxGeometry height="66" width="125" x="551" y="401" as="geometry" />
+        </mxCell>
+        <mxCell id="p6" parent="1" style="rounded=1;fillColor=#FFF8E1;strokeColor=#E67E22;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="부동산 브리핑&#xa;월 07:00" vertex="1">
+          <mxGeometry height="66" width="120" x="684" y="401" as="geometry" />
+        </mxCell>
+        <mxCell id="p7" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#8B95A1;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="데일리 다이제스트&#xa;매일 22:00" vertex="1">
+          <mxGeometry height="66" width="130" x="812" y="401" as="geometry" />
+        </mxCell>
+        <mxCell id="p_base" parent="1" style="rounded=1;fillColor=#191F28;strokeColor=#191F28;fontColor=#FFFFFF;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="base.py&#xa;run_steps()&#xa;deliver()" vertex="1">
+          <mxGeometry height="66" width="118" x="950" y="401" as="geometry" />
+        </mxCell>
+        <mxCell id="dep34" edge="1" parent="1" source="L3_bg" style="endArrow=block;endFill=1;strokeColor=#9B59B6;strokeWidth=3;endSize=10;fontSize=12;fontStyle=1;fontColor=#7B2D8E;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="L4_bg" value="프롬프트 빌드 + LLM 호출">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="L4_bg" parent="1" style="rounded=1;fillColor=#FAFBFC;strokeColor=#C9CDD2;strokeWidth=2;arcSize=4;" value="" vertex="1">
+          <mxGeometry height="100" width="1080" y="523" as="geometry" />
+        </mxCell>
+        <mxCell id="L4_badge" parent="1" style="ellipse;fillColor=#4E5968;strokeColor=none;fontColor=#FFF;fontSize=12;fontStyle=1;align=center;verticalAlign=middle;" value="4" vertex="1">
+          <mxGeometry height="24" width="24" x="12" y="529" as="geometry" />
+        </mxCell>
+        <mxCell id="L4_title" parent="1" style="text;fontSize=13;fontStyle=1;fontColor=#4E5968;letterSpacing=1;" value="PROMPTS &amp; LLM   app/prompts/ · summarizer.py · tracing.py" vertex="1">
+          <mxGeometry height="22" width="520" x="42" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="L4_box" parent="1" style="rounded=1;fillColor=#FDFAFF;strokeColor=#D4B8F0;strokeWidth=1.5;arcSize=6;" value="" vertex="1">
+          <mxGeometry height="56" width="1056" x="12" y="557" as="geometry" />
+        </mxCell>
+        <mxCell id="pr1" parent="1" style="rounded=1;fillColor=#F5E6FF;strokeColor=#D4B8F0;fontSize=10;fontStyle=1;" value="summarizer.py" vertex="1">
+          <mxGeometry height="40" width="92" x="20" y="565" as="geometry" />
+        </mxCell>
+        <mxCell id="pr2" parent="1" style="rounded=1;fillColor=#F5E6FF;strokeColor=#D4B8F0;fontSize=10;fontStyle=1;" value="nasdaq.py" vertex="1">
+          <mxGeometry height="40" width="72" x="118" y="565" as="geometry" />
+        </mxCell>
+        <mxCell id="pr3" parent="1" style="rounded=1;fillColor=#F5E6FF;strokeColor=#D4B8F0;fontSize=10;fontStyle=1;" value="news_dive.py" vertex="1">
+          <mxGeometry height="40" width="90" x="196" y="565" as="geometry" />
+        </mxCell>
+        <mxCell id="pr4" parent="1" style="rounded=1;fillColor=#F5E6FF;strokeColor=#D4B8F0;fontSize=10;fontStyle=1;" value="issue_dive.py&#xa;LLM x2" vertex="1">
+          <mxGeometry height="46" width="92" x="292" y="562" as="geometry" />
+        </mxCell>
+        <mxCell id="pr5" parent="1" style="rounded=1;fillColor=#F5E6FF;strokeColor=#D4B8F0;fontSize=10;fontStyle=1;" value="stock_deep_dive.py&#xa;+ deep_research.py" vertex="1">
+          <mxGeometry height="46" width="132" x="390" y="562" as="geometry" />
+        </mxCell>
+        <mxCell id="pr6" parent="1" style="rounded=1;fillColor=#F5E6FF;strokeColor=#D4B8F0;fontSize=10;fontStyle=1;" value="real_estate.py" vertex="1">
+          <mxGeometry height="40" width="90" x="528" y="565" as="geometry" />
+        </mxCell>
+        <mxCell id="pr_prov" parent="1" style="rounded=1;fillColor=#9B59B6;strokeColor=#9B59B6;fontColor=#FFFFFF;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="AiProvider&#xa;Claude / Gemini / CLI" vertex="1">
+          <mxGeometry height="46" width="165" x="640" y="562" as="geometry" />
+        </mxCell>
+        <mxCell id="pr_trace" parent="1" style="rounded=1;fillColor=#191F28;strokeColor=#191F28;fontColor=#FFFFFF;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="TracingProvider&#xa;→ AiTrace DB" vertex="1">
+          <mxGeometry height="46" width="150" x="815" y="562" as="geometry" />
+        </mxCell>
+        <mxCell id="pr_seo" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#D1D6DB;fontSize=10;fontStyle=1;" value="SEO&#xa;Metadata" vertex="1">
+          <mxGeometry height="40" width="80" x="975" y="565" as="geometry" />
+        </mxCell>
+        <mxCell id="dep45" edge="1" parent="1" source="L4_bg" style="endArrow=block;endFill=1;strokeColor=#F04452;strokeWidth=3;endSize=10;fontSize=12;fontStyle=1;fontColor=#D32F2F;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="L5_bg" value="BriefingResult(html, title, slug ...)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="L5_bg" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#C9CDD2;strokeWidth=2;arcSize=4;" value="" vertex="1">
+          <mxGeometry height="95" width="1080" y="661" as="geometry" />
+        </mxCell>
+        <mxCell id="L5_badge" parent="1" style="ellipse;fillColor=#4E5968;strokeColor=none;fontColor=#FFF;fontSize=12;fontStyle=1;align=center;verticalAlign=middle;" value="5" vertex="1">
+          <mxGeometry height="24" width="24" x="12" y="667" as="geometry" />
+        </mxCell>
+        <mxCell id="L5_title" parent="1" style="text;fontSize=13;fontStyle=1;fontColor=#4E5968;letterSpacing=1;" value="PUBLISHING   app/publishing/" vertex="1">
+          <mxGeometry height="22" width="300" x="42" y="668" as="geometry" />
+        </mxCell>
+        <mxCell id="L5_box" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#E5E8EB;strokeWidth=1.5;arcSize=6;" value="" vertex="1">
+          <mxGeometry height="52" width="1056" x="12" y="695" as="geometry" />
+        </mxCell>
+        <mxCell id="pub1" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#8B95A1;fontSize=11;fontStyle=1;" value="DBPublisher" vertex="1">
+          <mxGeometry height="38" width="110" x="20" y="702" as="geometry" />
+        </mxCell>
+        <mxCell id="pub2" parent="1" style="rounded=1;fillColor=#E8F3FF;strokeColor=#3182F6;fontSize=11;fontStyle=1;" value="WordPressPublisher" vertex="1">
+          <mxGeometry height="38" width="145" x="140" y="702" as="geometry" />
+        </mxCell>
+        <mxCell id="pub3" parent="1" style="rounded=1;fillColor=#FFF0F0;strokeColor=#F04452;fontSize=11;fontStyle=1;" value="EmailPublisher" vertex="1">
+          <mxGeometry height="38" width="115" x="295" y="702" as="geometry" />
+        </mxCell>
+        <mxCell id="pub4" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#D1D6DB;fontSize=10;fontStyle=1;" value="OG Image" vertex="1">
+          <mxGeometry height="38" width="82" x="422" y="702" as="geometry" />
+        </mxCell>
+        <mxCell id="pub5" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#D1D6DB;fontSize=10;fontStyle=1;" value="Unsplash" vertex="1">
+          <mxGeometry height="38" width="75" x="512" y="702" as="geometry" />
+        </mxCell>
+        <mxCell id="pub6" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#D1D6DB;fontSize=10;fontStyle=1;" value="Chart" vertex="1">
+          <mxGeometry height="38" width="62" x="595" y="702" as="geometry" />
+        </mxCell>
+        <mxCell id="pub7" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#D1D6DB;fontSize=10;fontStyle=1;" value="Google Indexing" vertex="1">
+          <mxGeometry height="38" width="105" x="665" y="702" as="geometry" />
+        </mxCell>
+        <mxCell id="pub8" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#D1D6DB;fontSize=10;fontStyle=1;" value="Naver 티저" vertex="1">
+          <mxGeometry height="38" width="82" x="778" y="702" as="geometry" />
+        </mxCell>
+        <mxCell id="dep56" edge="1" parent="1" source="L5_bg" style="endArrow=block;endFill=1;strokeColor=#8B95A1;strokeWidth=3;endSize=10;fontSize=12;fontStyle=1;fontColor=#4E5968;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="L6_bg" value="REST API / SMTP / DB">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="L6_bg" parent="1" style="rounded=1;fillColor=#FAFBFC;strokeColor=#C9CDD2;strokeWidth=2;arcSize=4;" value="" vertex="1">
+          <mxGeometry height="85" width="1080" y="794" as="geometry" />
+        </mxCell>
+        <mxCell id="L6_badge" parent="1" style="ellipse;fillColor=#4E5968;strokeColor=none;fontColor=#FFF;fontSize=12;fontStyle=1;align=center;verticalAlign=middle;" value="6" vertex="1">
+          <mxGeometry height="24" width="24" x="12" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="L6_title" parent="1" style="text;fontSize=13;fontStyle=1;fontColor=#4E5968;letterSpacing=1;" value="EXTERNAL TARGETS" vertex="1">
+          <mxGeometry height="22" width="220" x="42" y="801" as="geometry" />
+        </mxCell>
+        <mxCell id="t_sqlite" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#191F28;strokeColor=#191F28;fontColor=#FFFFFF;fontSize=11;fontStyle=1;" value="SQLite" vertex="1">
+          <mxGeometry height="44" width="85" x="30" y="828" as="geometry" />
+        </mxCell>
+        <mxCell id="t_wp" parent="1" style="rounded=1;fillColor=#3182F6;strokeColor=#3182F6;fontColor=#FFFFFF;fontSize=12;fontStyle=1;whiteSpace=wrap;" value="WordPress" vertex="1">
+          <mxGeometry height="40" width="125" x="145" y="830" as="geometry" />
+        </mxCell>
+        <mxCell id="t_gmail" parent="1" style="rounded=1;fillColor=#F04452;strokeColor=#F04452;fontColor=#FFFFFF;fontSize=12;fontStyle=1;whiteSpace=wrap;" value="Gmail SMTP" vertex="1">
+          <mxGeometry height="40" width="110" x="295" y="830" as="geometry" />
+        </mxCell>
+        <mxCell id="t_unsplash" parent="1" style="rounded=1;fillColor=#8B95A1;strokeColor=#8B95A1;fontColor=#FFFFFF;fontSize=12;fontStyle=1;whiteSpace=wrap;" value="Unsplash" vertex="1">
+          <mxGeometry height="40" width="95" x="430" y="830" as="geometry" />
+        </mxCell>
+        <mxCell id="t_google" parent="1" style="rounded=1;fillColor=#8B95A1;strokeColor=#8B95A1;fontColor=#FFFFFF;fontSize=12;fontStyle=1;whiteSpace=wrap;" value="Google Indexing" vertex="1">
+          <mxGeometry height="40" width="120" x="550" y="830" as="geometry" />
+        </mxCell>
+        <mxCell id="sched" parent="1" style="rounded=1;fillColor=#191F28;strokeColor=#191F28;arcSize=6;" value="" vertex="1">
+          <mxGeometry height="260" width="195" x="1110" y="48" as="geometry" />
+        </mxCell>
+        <mxCell id="sched_t" parent="1" style="text;fontSize=15;fontStyle=1;fontColor=#FFFFFF;align=center;" value="APScheduler" vertex="1">
+          <mxGeometry height="24" width="195" x="1110" y="56" as="geometry" />
+        </mxCell>
+        <mxCell id="sched_body" parent="1" style="text;fontSize=10;fontColor=#B0B8C1;fontFamily=Courier New;align=left;verticalAlign=top;spacingLeft=14;spacingTop=6;whiteSpace=wrap;" value="07:00  KOSPI 브리핑&#xa;08:00  NASDAQ 브리핑&#xa;09:00  뉴스 딥다이브&#xa;10:00  이슈 딥다이브&#xa;11:00  주식 딥다이브&#xa;15:00  이슈 딥다이브&#xa;21:00  이슈 딥다이브&#xa;월 07:00  부동산&#xa;22:00  데일리 다이제스트" vertex="1">
+          <mxGeometry height="215" width="195" x="1110" y="84" as="geometry" />
+        </mxCell>
+        <mxCell id="sched_arr" edge="1" parent="1" style="rounded=1;strokeColor=#8B95A1;strokeWidth=2;dashed=1;dashPattern=8 4;fontSize=11;fontColor=#8B95A1;fontStyle=2;endArrow=classic;endFill=1;" value="cron 트리거">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1096" y="270" />
+              <mxPoint x="1096" y="390" />
+            </Array>
+            <mxPoint x="1110" y="270" as="sourcePoint" />
+            <mxPoint x="1080" y="390" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="web" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#3182F6;strokeWidth=2;arcSize=6;" value="" vertex="1">
+          <mxGeometry height="175" width="195" x="1180.5" y="348" as="geometry" />
+        </mxCell>
+        <mxCell id="web_t" parent="1" style="text;fontSize=14;fontStyle=1;fontColor=#3182F6;align=center;" value="FastAPI Web UI" vertex="1">
+          <mxGeometry height="22" width="195" x="1180.5" y="356" as="geometry" />
+        </mxCell>
+        <mxCell id="w1" parent="1" style="rounded=1;fillColor=#E8F3FF;strokeColor=#B8D4F6;fontSize=11;whiteSpace=wrap;" value="/pipelines&#xa;수동 실행 대시보드" vertex="1">
+          <mxGeometry height="38" width="165" x="1195.5" y="385" as="geometry" />
+        </mxCell>
+        <mxCell id="w2" parent="1" style="rounded=1;fillColor=#F5E6FF;strokeColor=#D4B8F0;fontSize=11;whiteSpace=wrap;" value="/traces&#xa;AI 호출 모니터링" vertex="1">
+          <mxGeometry height="38" width="165" x="1195.5" y="431" as="geometry" />
+        </mxCell>
+        <mxCell id="w3" parent="1" style="rounded=1;fillColor=#F2F4F6;strokeColor=#D1D6DB;fontSize=11;whiteSpace=wrap;" value="/archive&#xa;브리핑 아카이브" vertex="1">
+          <mxGeometry height="38" width="165" x="1195.5" y="477" as="geometry" />
+        </mxCell>
+        <mxCell id="web_arr" edge="1" parent="1" source="web" style="rounded=1;strokeColor=#3182F6;strokeWidth=2;dashed=1;dashPattern=8 4;fontSize=11;fontColor=#3182F6;fontStyle=2;endArrow=classic;endFill=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;edgeStyle=orthogonalEdgeStyle;" value="수동 실행">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1110" y="356" as="sourcePoint" />
+            <mxPoint x="1080" y="465" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend" parent="1" style="rounded=1;fillColor=#FFFFFF;strokeColor=#D1D6DB;strokeWidth=1.5;arcSize=6;" value="" vertex="1">
+          <mxGeometry height="78" width="200" x="1160" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_t" parent="1" style="text;fontSize=11;fontStyle=1;fontColor=#6B7684;align=center;" value="Legend" vertex="1">
+          <mxGeometry height="18" width="195" x="1160" y="584" as="geometry" />
+        </mxCell>
+        <mxCell id="l1" parent="1" style="rounded=1;fillColor=#E8FAF0;strokeColor=#00B853;strokeWidth=1.5;" value="" vertex="1">
+          <mxGeometry height="14" width="14" x="1172" y="608" as="geometry" />
+        </mxCell>
+        <mxCell id="l1t" parent="1" style="text;fontSize=10;fontColor=#4E5968;" value="KR" vertex="1">
+          <mxGeometry height="18" width="24" x="1189" y="606" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" parent="1" style="rounded=1;fillColor=#E8F3FF;strokeColor=#3182F6;strokeWidth=1.5;" value="" vertex="1">
+          <mxGeometry height="14" width="14" x="1220" y="608" as="geometry" />
+        </mxCell>
+        <mxCell id="l2t" parent="1" style="text;fontSize=10;fontColor=#4E5968;" value="US" vertex="1">
+          <mxGeometry height="18" width="24" x="1237" y="606" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" parent="1" style="rounded=1;fillColor=#F5E6FF;strokeColor=#9B59B6;strokeWidth=1.5;" value="" vertex="1">
+          <mxGeometry height="14" width="14" x="1268" y="608" as="geometry" />
+        </mxCell>
+        <mxCell id="l3t" parent="1" style="text;fontSize=10;fontColor=#4E5968;" value="AI" vertex="1">
+          <mxGeometry height="18" width="24" x="1285" y="606" as="geometry" />
+        </mxCell>
+        <mxCell id="l4" parent="1" style="rounded=1;fillColor=#191F28;strokeColor=#191F28;strokeWidth=1.5;" value="" vertex="1">
+          <mxGeometry height="14" width="14" x="1316" y="608" as="geometry" />
+        </mxCell>
+        <mxCell id="l4t" parent="1" style="text;fontSize=10;fontColor=#4E5968;" value="Core" vertex="1">
+          <mxGeometry height="18" width="30" x="1333" y="606" as="geometry" />
+        </mxCell>
+        <mxCell id="l5" parent="1" style="rounded=1;fillColor=#E0F7F7;strokeColor=#1ABC9C;strokeWidth=1.5;" value="" vertex="1">
+          <mxGeometry height="14" width="14" x="1172" y="632" as="geometry" />
+        </mxCell>
+        <mxCell id="l5t" parent="1" style="text;fontSize=10;fontColor=#4E5968;" value="주식DD" vertex="1">
+          <mxGeometry height="18" width="42" x="1189" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="l6" parent="1" style="text;fontSize=10;fontColor=#8B95A1;" value="- - -" vertex="1">
+          <mxGeometry height="18" width="30" x="1240" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="l6t" parent="1" style="text;fontSize=10;fontColor=#4E5968;" value="cron / 수동" vertex="1">
+          <mxGeometry height="18" width="65" x="1268" y="630" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
