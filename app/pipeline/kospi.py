@@ -175,8 +175,12 @@ def summarize(data: CollectedData) -> BriefingResult:
 
 
 async def collect_kospi_data(ctx: KospiContext) -> None:
-    """시장/공시/뉴스 데이터를 수집한다."""
-    ctx["collected"] = await collect_data()
+    """시장/공시/뉴스 데이터를 수집한다. 휴장이면 파이프라인을 중단한다."""
+    collected = await collect_data()
+    ctx["collected"] = collected
+    if collected.is_market_closed:
+        logger.info("휴장일 — 파이프라인 중단 (발행 생략)")
+        ctx["skip"] = True
 
 
 async def summarize_kospi(ctx: KospiContext) -> None:

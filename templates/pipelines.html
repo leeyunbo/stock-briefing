@@ -158,6 +158,74 @@
             cursor: not-allowed;
         }
 
+        /* Published list */
+        .publish-list {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .publish-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            background: #f2f8ff;
+            border-radius: 8px;
+        }
+        .publish-link {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 500;
+            color: #3182f6;
+            text-decoration: none;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .publish-link:hover { text-decoration: underline; }
+
+        /* Teaser copy button */
+        .teaser-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 6px;
+            background: #f2f4f6;
+            color: #6b7684;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s, color 0.15s;
+        }
+        .teaser-btn:hover { background: #e5e8eb; color: #3182f6; }
+        .teaser-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #191f28;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 9999;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
         /* Run button */
         .run-btn {
             flex-shrink: 0;
@@ -277,12 +345,20 @@
                             {{ r.time }} {{ '✓' if r.success else '✗' }}
                         </a>
                         {% endfor %}
-                        {% if published.get(p.id) %}
-                        <a class="publish-status published" href="{{ published[p.id] }}" target="_blank">블로그 발행됨</a>
-                        {% else %}
+                        {% if not published.get(p.id) %}
                         <button class="publish-status not-published" id="pub-{{ p.id }}" onclick="republish('{{ p.id }}')">블로그 미발행 — 재발행</button>
                         {% endif %}
                     </div>
+                    {% if published.get(p.id) %}
+                    <div class="publish-list">
+                        {% for pub in published[p.id] %}
+                        <div class="publish-item">
+                            <a class="publish-link" href="{{ pub.blog_url }}" target="_blank">{{ pub.title }}</a>
+                            <button class="teaser-btn" onclick="copyTeaser(this, '{{ p.id }}', {{ pub.id }})">📋 티저 복사</button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                     {% else %}
                     <div class="today-none">오늘 미실행</div>
                     {% endif %}
@@ -295,6 +371,7 @@
         </div>
         {% endfor %}
     </div>
+    <div class="toast" id="toast"></div>
 
     <script>
         let polling = null;
@@ -397,6 +474,46 @@
                     btn.disabled = false;
                     btn.textContent = '발행 실패 — 재시도';
                 });
+        }
+
+        // ── 티저 복사 ──────────────────────────────────────────
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        async function copyTeaser(btn, id, briefingId) {
+            const origText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '생성 중…';
+            try {
+                let url = '/pipelines/' + id + '/teaser';
+                if (briefingId) url += '?briefing_id=' + briefingId;
+
+                // ClipboardItem에 promise를 넘겨서 사용자 제스처 권한 유지
+                const htmlPromise = fetch(url)
+                    .then(r => {
+                        if (!r.ok) return r.json().then(e => { throw new Error(e.error || '실패'); });
+                        return r.json();
+                    })
+                    .then(data => {
+                        btn.disabled = false;
+                        btn.textContent = origText;
+                        return new Blob([data.teaser_html], { type: 'text/html' });
+                    });
+
+                await navigator.clipboard.write([
+                    new ClipboardItem({ 'text/html': htmlPromise })
+                ]);
+                showToast('클립보드에 복사되었습니다!');
+            } catch (e) {
+                console.error(e);
+                showToast('복사 실패: ' + e.message);
+                btn.disabled = false;
+                btn.textContent = origText;
+            }
         }
 
         // 페이지 로드 시 이미 실행 중인 작업이 있으면 폴링 시작

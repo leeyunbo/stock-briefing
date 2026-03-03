@@ -87,7 +87,7 @@ class GeminiProvider:
 class ClaudeCliProvider:
     """Claude Code CLI 구현체. API 키 불필요, 구독 크레딧 활용."""
 
-    def __init__(self, timeout: int = 120):
+    def __init__(self, timeout: int = 300):
         self.timeout = timeout
 
     def call(self, system_prompt: str, user_prompt: str) -> str:
@@ -208,8 +208,13 @@ SEO 최적화 규칙 (Rank Math 100점을 목표로):
    - 본문 전체에서 2~3회 자연스럽게 반복 (과도한 반복 금지)
 
 2. 제목 최적화:
+   - 사람들이 실제로 검색할 법한 키워드를 제목 앞쪽에 배치하세요
+     * 좋은 예: "엔비디아 실적 분석, AI 매출 30% 급증의 의미" (검색어: "엔비디아 실적")
+     * 좋은 예: "테슬라 주가 전망, 2분기 실적 3가지 포인트" (검색어: "테슬라 주가 전망")
+     * 나쁜 예: "AI 대학살! SaaS 종목 패닉의 충격" (자극적이지만 검색 유입 없음)
+   - "종목명 + 주가/실적/전망/분석" 패턴이 검색 유입에 효과적
    - 숫자를 포함하세요 (예: "3가지", "5.2% 급등", "2026년")
-   - 감성/파워 단어를 포함하세요 (예: "급등", "충격", "돌파", "핵심", "필수", "서프라이즈")
+   - 감성/파워 단어는 뒤쪽에 배치 (예: "급등", "충격", "돌파")
    - 반드시 28~40자 이내로 작성 (40자 초과 절대 금지!)
 
 3. 메타 디스크립션(excerpt):
@@ -229,7 +234,7 @@ title: 그 날 메인 이슈를 담은 제목. focus_keyword를 앞부분에 배
 slug: 영문+하이픈만 사용. 날짜/숫자 절대 포함 금지! 핵심 키워드 2~3개로 구성 (예: "oil-crisis-hormuz-strait")
 excerpt: 120~155자, focus_keyword 포함, 클릭 유도 문장
 tags: 본문 핵심 키워드 3~5개 (한국어)
-focus_keyword: Rank Math SEO용 핵심 키워드 1개 (한국어, 검색량 높은 단어, 2~4단어)
+focus_keyword: 사람들이 네이버/구글에서 실제로 검색할 키워드 1개 (한국어, 2~4단어). "종목명 주가", "종목명 실적", "종목명 전망" 같은 검색 패턴 우선. 예: "엔비디아 실적 분석", "테슬라 주가 전망", "금값 전망"
 image_keywords: 기사 주제를 대표하는 영문 검색어 3개 배열 (Unsplash 이미지 검색용). 구체적→일반적 순서. 예: ["oil tanker hormuz", "oil tanker", "energy market"]
 """
 

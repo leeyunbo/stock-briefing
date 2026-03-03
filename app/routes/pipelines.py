@@ -126,15 +126,19 @@ async def pipelines_page(request: Request, db: AsyncSession = Depends(get_db)):
 
     # 오늘 블로그 발행 여부 (Briefing.blog_url 유무)
     briefing_result = await db.execute(
-        select(Briefing.briefing_type, Briefing.blog_url)
+        select(Briefing.id, Briefing.briefing_type, Briefing.title, Briefing.blog_url)
         .where(Briefing.date == today_kst)
+        .order_by(Briefing.created_at.asc())
     )
-    published: dict[str, str] = {}
+    published: dict[str, list[dict]] = {}
     for b in briefing_result.all():
-        # briefing_type → pipeline_id 역매핑
         for pid, btype in BRIEFING_TYPE_MAP.items():
             if b.briefing_type == btype and b.blog_url:
-                published[pid] = b.blog_url
+                published.setdefault(pid, []).append({
+                    "id": b.id,
+                    "title": b.title,
+                    "blog_url": b.blog_url,
+                })
 
     return templates.TemplateResponse("pipelines.html", {
         "request": request,
@@ -216,6 +220,98 @@ async def fix_featured_images_endpoint():
     from app.publishing.wordpress import fix_featured_images
     result = await fix_featured_images()
     return result
+
+
+TEASER_SYSTEM_PROMPT = """\
+너는 블로그 교차 게시용 티저 작성 전문가야.
+원문 HTML을 읽고, 네이버 블로그에 붙여넣기할 티저 HTML을 만들어.
+
+## 규칙
+- 반드시 **인라인 style 속성**만 사용 (네이버 에디터가 CSS class 무시)
+- <div>, <style>, <class> 금지. <h2>, <p>, <a>, <span>, <strong> 만 사용
+- 출력은 HTML만. 설명·마크다운·코드블록 없이 순수 HTML만 출력
+- 아래 예시의 HTML 구조를 **그대로** 따르고, 텍스트 내용만 바꿔
+
+## 출력 예시 (이 구조를 정확히 따를 것)
+
+<h2 style="font-size:22px;font-weight:700;color:#191f28;margin:0 0 16px 0;line-height:1.4;">제목을 여기에</h2>
+<p style="font-size:16px;line-height:1.8;color:#333;margin:0 0 12px 0;">도입 첫째 문단. 궁금증을 유발하되 핵심만 살짝 보여줌.</p>
+<p style="font-size:16px;line-height:1.8;color:#333;margin:0 0 12px 0;">도입 둘째 문단.</p>
+<p style="font-size:15px;font-weight:700;color:#191f28;margin:24px 0 8px 0;padding:12px 16px;background:#f7f8fa;border-left:4px solid #3182f6;line-height:1.4;">📌 이 글에서 다루는 내용</p>
+<p style="font-size:14px;color:#333;margin:0 0 4px 20px;line-height:1.6;">• 섹션 제목 1</p>
+<p style="font-size:14px;color:#333;margin:0 0 4px 20px;line-height:1.6;">• 섹션 제목 2</p>
+<p style="font-size:14px;color:#333;margin:0 0 4px 20px;line-height:1.6;">• 섹션 제목 3</p>
+<p style="font-size:15px;color:#6b7684;margin:20px 0 16px 0;line-height:1.6;">전체 분석과 차트, 관련 종목 데이터는 아래에서 확인하실 수 있어요.</p>
+<p style="margin:0 0 20px 0;"><a href="URL" target="_blank" style="display:inline-block;padding:12px 28px;background:#3182f6;color:#fff;font-size:15px;font-weight:700;border-radius:8px;text-decoration:none;">전문 보기 →</a></p>
+<p style="font-size:13px;color:#b0b8c1;margin:16px 0 0 0;">출처: 데일리머니다이브</p>
+
+## 작성 지침
+- 도입부 2~3문단: 원문 첫 부분을 자연스럽게 편집. 궁금증을 유발하되 핵심 내용은 살짝만 보여줌
+- 📌 불릿: 원문 h2 섹션 제목을 나열 (이모지 제거)
+- URL: 제공된 원문 링크로 교체
+- margin은 반드시 margin:0 0 Xpx 0 형태로 (상하좌우 명시). margin-bottom 같은 축약 금지
+"""
+
+
+@router.get("/{pipeline_id}/teaser")
+async def teaser(pipeline_id: str, briefing_id: int = 0, db: AsyncSession = Depends(get_db)):
+    """LLM으로 네이버/티스토리용 티저 HTML을 생성한다."""
+    from app.summarizer import ClaudeCliProvider
+
+    briefing_type = BRIEFING_TYPE_MAP.get(pipeline_id)
+    if not briefing_type:
+        return JSONResponse({"error": "Unknown pipeline"}, status_code=404)
+
+    if briefing_id:
+        result = await db.execute(
+            select(Briefing).where(Briefing.id == briefing_id)
+        )
+    else:
+        today_kst = datetime.now(KST).date()
+        result = await db.execute(
+            select(Briefing)
+            .where(
+                Briefing.date == today_kst,
+                Briefing.briefing_type == briefing_type,
+                Briefing.blog_url != "",
+                Briefing.blog_url.isnot(None),
+            )
+            .order_by(Briefing.created_at.desc())
+            .limit(1)
+        )
+    briefing = result.scalar_one_or_none()
+    if not briefing:
+        return JSONResponse({"error": "오늘 발행된 브리핑이 없습니다."}, status_code=404)
+
+    user_prompt = (
+        f"제목: {briefing.title}\n"
+        f"원문 링크: {briefing.blog_url}\n\n"
+        f"원문 HTML:\n{briefing.content_html}"
+    )
+
+    system_prompt = TEASER_SYSTEM_PROMPT
+    if pipeline_id == "real_estate":
+        system_prompt += (
+            "\n\n## 부동산 브리핑 추가 규칙\n"
+            '- CTA 문구를 "자세한 내용은 아래 링크에서 확인하실 수 있어요."로 변경\n'
+            "- 출처 위에 자연스럽게 한 문장을 추가해:\n"
+            '"청약 일정과 분양 정보가 궁금하시다면 '
+            '<a href="https://house-ping.com" target="_blank" '
+            'style="color:#3182f6;font-weight:600;text-decoration:none;">'
+            'house-ping.com</a>에서 한눈에 확인해보세요." 느낌으로.'
+        )
+
+    provider = ClaudeCliProvider(timeout=300)
+    teaser_html = await asyncio.to_thread(provider.call, system_prompt, user_prompt)
+    # 혹시 코드블록으로 감싸져 있으면 제거
+    teaser_html = teaser_html.strip()
+    if teaser_html.startswith("```"):
+        teaser_html = teaser_html.split("\n", 1)[1]
+    if teaser_html.endswith("```"):
+        teaser_html = teaser_html.rsplit("```", 1)[0]
+    teaser_html = teaser_html.strip()
+
+    return {"teaser_html": teaser_html, "blog_url": briefing.blog_url}
 
 
 @router.get("/status")
