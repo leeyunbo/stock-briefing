@@ -18,6 +18,7 @@ from app.pipeline.nasdaq import run_nasdaq_pipeline
 from app.pipeline.research import run_news_dive_pipeline
 from app.pipeline.issue_dive import run_issue_dive_pipeline
 from app.pipeline.real_estate import run_real_estate_pipeline
+from app.pipeline.stock_deep_dive import run_stock_deep_dive_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ BRIEFING_TYPE_MAP: dict[str, str] = {
     "news_dive": BriefingType.NEWS_DIVE,
     "issue_dive": BriefingType.ISSUE_DIVE,
     "real_estate": BriefingType.REAL_ESTATE,
+    "stock_deep_dive": BriefingType.STOCK_DEEP_DIVE,
 }
 
 # ── 파이프라인 정의 ──────────────────────────────────────────
@@ -64,6 +66,7 @@ PIPELINES: list[dict[str, Any]] = [
         "description": "핵심 이슈를 선정해 심층 분석 기사를 작성합니다.",
         "schedule": "매일 10:00 / 15:00 / 21:00",
         "func": run_issue_dive_pipeline,
+        "has_topic_input": True,
     },
     {
         "id": "real_estate",
@@ -72,16 +75,24 @@ PIPELINES: list[dict[str, Any]] = [
         "schedule": "월요일 07:00",
         "func": run_real_estate_pipeline,
     },
+    {
+        "id": "stock_deep_dive",
+        "name": "주식 딥다이브",
+        "description": "개별 종목을 심층 분석합니다. 티커를 입력하거나 비워두면 AI가 자동 선정합니다.",
+        "schedule": "매일 11:00",
+        "func": run_stock_deep_dive_pipeline,
+        "has_ticker_input": True,
+    },
 ]
 
 # ── 인메모리 실행 상태 ────────────────────────────────────────
 _run_state: dict[str, dict[str, Any]] = {}
 
 
-async def _execute(pipeline_id: str, func):
+async def _execute(pipeline_id: str, func, **kwargs):
     """파이프라인을 실행하고 상태를 갱신한다."""
     try:
-        run_id = await func(email_to=[])
+        run_id = await func(email_to=[], **kwargs)
         _run_state[pipeline_id].update(status="done", run_id=run_id)
     except Exception as e:
         logger.exception("Pipeline %s failed", pipeline_id)
@@ -149,7 +160,7 @@ async def pipelines_page(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{pipeline_id}/run")
-async def run(pipeline_id: str):
+async def run(pipeline_id: str, request: Request):
     """파이프라인을 백그라운드로 실행한다."""
     # 유효성 검증
     target = next((p for p in PIPELINES if p["id"] == pipeline_id), None)
@@ -161,6 +172,29 @@ async def run(pipeline_id: str):
     if state and state["status"] == "running":
         return JSONResponse({"error": "Already running"}, status_code=409)
 
+    # 추가 파라미터 추출
+    extra_kwargs: dict = {}
+    body: dict = {}
+    if target.get("has_ticker_input") or target.get("has_topic_input"):
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+
+    if target.get("has_ticker_input"):
+        ticker_val = body.get("ticker", "").strip()
+        if ticker_val:
+            extra_kwargs["ticker"] = ticker_val
+
+    if target.get("has_topic_input"):
+        topic_val = body.get("topic", "").strip() if isinstance(body.get("topic"), str) else ""
+        if topic_val:
+            import json
+            try:
+                extra_kwargs["topic"] = json.loads(topic_val)
+            except json.JSONDecodeError:
+                return JSONResponse({"error": "Topic JSON 파싱 실패"}, status_code=400)
+
     # 상태 초기화 + 백그라운드 실행
     _run_state[pipeline_id] = {
         "status": "running",
@@ -168,7 +202,7 @@ async def run(pipeline_id: str):
         "started_at": datetime.now(KST).isoformat(),
         "error": None,
     }
-    asyncio.create_task(_execute(pipeline_id, target["func"]))
+    asyncio.create_task(_execute(pipeline_id, target["func"], **extra_kwargs))
 
     return {"status": "running", "pipeline_id": pipeline_id}
 

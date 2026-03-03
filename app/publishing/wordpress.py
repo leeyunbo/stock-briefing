@@ -21,6 +21,7 @@ CATEGORY_SLUG_MAP: dict[str, str] = {
     BriefingType.ISSUE_DIVE: "deep-dive",
     BriefingType.KOSPI: "kr-stocks",
     BriefingType.REAL_ESTATE: "real-estate",
+    BriefingType.STOCK_DEEP_DIVE: "stock-deep-dive",
 }
 
 

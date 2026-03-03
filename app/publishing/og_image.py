@@ -22,6 +22,7 @@ _CATEGORY_COLORS: dict[str, str] = {
     "부동산": "#27ae60",
     "오늘의 뉴스": "#9b59b6",
     "이슈 딥다이브": "#e67e22",
+    "주식 딥다이브": "#1abc9c",
 }
 
 # BriefingType → 카테고리 표시명
@@ -31,6 +32,7 @@ CATEGORY_DISPLAY: dict[str, str] = {
     BriefingType.NEWS_DIVE: "오늘의 뉴스",
     BriefingType.ISSUE_DIVE: "이슈 딥다이브",
     BriefingType.REAL_ESTATE: "부동산",
+    BriefingType.STOCK_DEEP_DIVE: "주식 딥다이브",
 }
 _BG_COLOR = "#1a1a2e"
 _WIDTH = 1200

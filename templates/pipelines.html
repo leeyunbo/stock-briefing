@@ -304,6 +304,52 @@
         }
         .status-bar a:hover { text-decoration: underline; }
 
+        /* Ticker input */
+        .ticker-input {
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px 14px;
+            border: 1px solid #e5e8eb;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #191f28;
+            background: #f7f8fa;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .ticker-input:focus {
+            border-color: #3182f6;
+            background: #fff;
+        }
+        .ticker-input::placeholder {
+            color: #b0b8c1;
+        }
+
+        /* Topic textarea */
+        .topic-input {
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px 14px;
+            border: 1px solid #e5e8eb;
+            border-radius: 10px;
+            font-size: 13px;
+            font-family: 'Pretendard', monospace;
+            color: #191f28;
+            background: #f7f8fa;
+            outline: none;
+            transition: border-color 0.15s;
+            resize: vertical;
+            min-height: 60px;
+        }
+        .topic-input:focus {
+            border-color: #3182f6;
+            background: #fff;
+        }
+        .topic-input::placeholder {
+            color: #b0b8c1;
+        }
+
         /* Animation */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(6px); }
@@ -336,6 +382,14 @@
                     <div class="card-name">{{ p.name }}</div>
                     <div class="card-desc">{{ p.description }}</div>
                     <span class="card-schedule">🕐 {{ p.schedule }}</span>
+                    {% if p.get('has_ticker_input', False) %}
+                    <input type="text" class="ticker-input" id="ticker-{{ p.id }}"
+                           placeholder="티커 입력 (예: NVDA, 005930, 삼성전자) — 비워두면 AI 자동 선택">
+                    {% endif %}
+                    {% if p.get('has_topic_input', False) %}
+                    <textarea class="topic-input" id="topic-{{ p.id }}" rows="3"
+                              placeholder='주제 JSON 붙여넣기 (비워두면 AI 자동 선정)&#10;{"topic":"...", "headline":"...", "search_keywords":[], "related_tickers":[]}'></textarea>
+                    {% endif %}
                     {% set runs = today_runs.get(p.id) %}
                     {% if runs %}
                     <div class="today-runs">
@@ -385,7 +439,19 @@
             bar.className = 'status-bar running';
             bar.innerHTML = '<span class="spinner-sm"></span>파이프라인 실행 중…';
 
-            fetch('/pipelines/' + id + '/run', { method: 'POST' })
+            // ticker/topic 입력이 있으면 JSON body로 전송
+            const tickerInput = document.getElementById('ticker-' + id);
+            const topicInput = document.getElementById('topic-' + id);
+            const fetchOpts = { method: 'POST' };
+            if (tickerInput || topicInput) {
+                const payload = {};
+                if (tickerInput) payload.ticker = tickerInput.value.trim();
+                if (topicInput) payload.topic = topicInput.value.trim();
+                fetchOpts.headers = { 'Content-Type': 'application/json' };
+                fetchOpts.body = JSON.stringify(payload);
+            }
+
+            fetch('/pipelines/' + id + '/run', fetchOpts)
                 .then(r => {
                     if (r.status === 409) {
                         bar.className = 'status-bar error';

@@ -71,7 +71,7 @@ class Publisher(Protocol):
 
 class DBPublisher:
     # 하루에 여러 건 발행 가능한 타입 (upsert 대신 항상 INSERT)
-    _MULTI_PER_DAY = {BriefingType.ISSUE_DIVE}
+    _MULTI_PER_DAY = {BriefingType.ISSUE_DIVE, BriefingType.STOCK_DEEP_DIVE}
 
     async def publish(self, result: BriefingResult, briefing_type: str, **kwargs) -> dict:
         today = date.today()

@@ -15,6 +15,7 @@ class BriefingType(StrEnum):
     NEWS_DIVE = "news_dive"
     ISSUE_DIVE = "issue_dive"
     REAL_ESTATE = "real_estate_briefing"
+    STOCK_DEEP_DIVE = "stock_deep_dive"
 
 
 class Subscriber(Base):

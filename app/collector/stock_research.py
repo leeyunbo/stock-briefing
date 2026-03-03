@@ -98,12 +98,78 @@ async def fetch_stock_research(ticker: str) -> StockResearchData:
             if not isinstance(r, BaseException) and r:
                 data.peer_financials.append(r)
 
+    # yfinance 재무제표로 PER/PBR/마진을 직접 계산하여 Finnhub 지표를 보정
+    _recalc_financials(data)
+
     logger.info(
         "리서치 수집 완료 [%s]: profile=%s, earnings=%d, peers=%d, filings=%d",
         ticker, bool(data.profile.name), len(data.earnings),
         len(data.peer_financials), len(data.sec_filings),
     )
     return data
+
+
+# ── yfinance 기반 지표 재계산 ──
+
+
+def _recalc_financials(data: StockResearchData) -> None:
+    """yfinance 재무제표에서 PER/PBR/마진을 직접 계산하여 Finnhub 지표를 보정한다.
+
+    Finnhub metric API는 종종 부정확한 값을 반환하므로,
+    실제 SEC filing 기반 yfinance 데이터로 재계산한 값을 우선 적용한다.
+    """
+    market_cap = (data.profile.market_cap or 0) * 1_000_000  # M → 절대값
+    if market_cap <= 0:
+        return
+
+    fin = data.financials
+
+    # TTM 순이익/매출/영업이익: 최근 4분기 합산
+    quarterly_income = sorted(
+        [r for r in data.income_statements if r.period_type == "quarterly" and r.total_revenue],
+        key=lambda r: r.period, reverse=True,
+    )[:4]
+
+    if len(quarterly_income) >= 4:
+        ttm_revenue = sum(r.total_revenue for r in quarterly_income if r.total_revenue)
+        ttm_net_income = sum(r.net_income for r in quarterly_income if r.net_income is not None)
+        ttm_operating = sum(r.operating_income for r in quarterly_income if r.operating_income is not None)
+        ttm_gross = sum(r.gross_profit for r in quarterly_income if r.gross_profit is not None)
+
+        # PER (적자면 음수로 표시)
+        if ttm_net_income and ttm_net_income != 0:
+            fin.pe_ttm = round(market_cap / ttm_net_income, 2)
+        else:
+            fin.pe_ttm = None
+
+        # PSR
+        if ttm_revenue and ttm_revenue > 0:
+            fin.ps_ttm = round(market_cap / ttm_revenue, 2)
+
+        # 마진율
+        if ttm_revenue and ttm_revenue > 0:
+            if ttm_gross:
+                fin.gross_margin_ttm = round(ttm_gross / ttm_revenue * 100, 2)
+            fin.operating_margin_ttm = round(ttm_operating / ttm_revenue * 100, 2)
+            fin.net_margin_ttm = round(ttm_net_income / ttm_revenue * 100, 2)
+
+    # PBR: 시총 / 최신 자기자본
+    latest_bs = sorted(
+        [r for r in data.balance_sheets if r.stockholders_equity],
+        key=lambda r: r.period, reverse=True,
+    )
+    if latest_bs:
+        equity = latest_bs[0].stockholders_equity
+        if equity and equity > 0:
+            fin.pb_annual = round(market_cap / equity, 2)
+
+        # ROE: TTM 순이익 / 자기자본
+        if len(quarterly_income) >= 4 and equity and equity > 0:
+            ttm_net = sum(r.net_income for r in quarterly_income if r.net_income is not None)
+            fin.roe_ttm = round(ttm_net / equity * 100, 2)
+
+    logger.debug("지표 재계산 [%s]: PER=%s, PBR=%s, PSR=%s, ROE=%s%%",
+                 data.ticker, fin.pe_ttm, fin.pb_annual, fin.ps_ttm, fin.roe_ttm)
 
 
 # ── Finnhub 딥 리서치 헬퍼 ──
@@ -197,6 +263,8 @@ async def _research_earnings(client: httpx.AsyncClient, ticker: str) -> list[Ear
         )
         resp.raise_for_status()
         items = resp.json() or []
+        # 분기 종료 후 실적 발표까지 45~60일 소요 → 75일 버퍼
+        cutoff = (datetime.now() - timedelta(days=75)).strftime("%Y-%m-%d")
         return [
             EarningsData(
                 period=e.get("period", ""),
@@ -204,8 +272,9 @@ async def _research_earnings(client: httpx.AsyncClient, ticker: str) -> list[Ear
                 estimate=e.get("estimate"),
                 surprise_pct=e.get("surprisePercent"),
             )
-            for e in items[:4]
-        ]
+            for e in items[:8]
+            if e.get("period", "9999") <= cutoff and e.get("actual") is not None
+        ][:4]
     except (httpx.HTTPStatusError, httpx.RequestError) as e:
         logger.warning("리서치 Earnings 에러 (%s): %s", ticker, e)
         return []

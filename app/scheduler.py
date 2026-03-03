@@ -8,6 +8,7 @@ from app.pipeline.real_estate import run_real_estate_pipeline
 from app.pipeline.research import run_news_dive_pipeline
 from app.pipeline.issue_dive import run_issue_dive_pipeline
 from app.pipeline.digest import run_daily_digest
+from app.pipeline.stock_deep_dive import run_stock_deep_dive_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,16 @@ def start_scheduler():
         kwargs={"email_to": []},
     )
 
+    # 종목 딥다이브 (자동 모드): 매일 11시
+    scheduler.add_job(
+        run_stock_deep_dive_pipeline,
+        trigger="cron",
+        hour=11,
+        minute=0,
+        id="stock_deep_dive",
+        kwargs={"email_to": []},
+    )
+
     # 데일리 다이제스트: 매일 밤 22시 — 오늘 발행된 글 목록 1통
     scheduler.add_job(
         run_daily_digest,
@@ -81,5 +92,5 @@ def start_scheduler():
     )
 
     scheduler.start()
-    logger.info("스케줄러 시작: 한국 화~토 7시, 나스닥 화~토 8시, 뉴스딥다이브 매일 9시, 이슈딥다이브 매일 10/15/21시, 부동산 월 7시, 다이제스트 매일 22시")
+    logger.info("스케줄러 시작: 한국 화~토 7시, 나스닥 화~토 8시, 뉴스딥다이브 매일 9시, 이슈딥다이브 매일 10/15/21시, 종목딥다이브 매일 11시, 부동산 월 7시, 다이제스트 매일 22시")
     return scheduler

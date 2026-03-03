@@ -194,15 +194,26 @@ ISSUE_DIVE_STEPS = [
 ]
 
 
-async def run_issue_dive_pipeline(email_to: list[str] | None = []) -> str:
-    """이슈 딥다이브 파이프라인 — 스텝 기반."""
-    logger.info("이슈 딥다이브 파이프라인 시작: %s", date.today())
+async def run_issue_dive_pipeline(email_to: list[str] | None = [], topic: dict | None = None) -> str:
+    """이슈 딥다이브 파이프라인 — 스텝 기반.
+
+    topic이 주어지면 시장 스캔/중복제거/이슈 선정을 건너뛰고
+    바로 리서치 → 기사 생성으로 진행한다.
+    """
+    logger.info("이슈 딥다이브 파이프라인 시작: %s (topic=%s)", date.today(), topic.get("topic", "") if topic else "auto")
     ctx: IssueDiveContext = {
         "run_id": generate_run_id(),
         "email_to": email_to,
         "pipeline": "issue_dive",
         "briefing_type": BriefingType.ISSUE_DIVE,
     }
-    await run_steps(ISSUE_DIVE_STEPS, ctx)
+    if topic:
+        ctx["issue"] = topic
+        ctx["scan"] = MarketScanData()
+        ctx["macro"] = MacroIndicators()
+        steps = [research_issue, generate_article, render_charts, deliver]
+    else:
+        steps = ISSUE_DIVE_STEPS
+    await run_steps(steps, ctx)
     result = ctx.get("result")
     return result.html if result else ""

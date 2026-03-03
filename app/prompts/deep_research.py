@@ -12,13 +12,19 @@ from app.tracing import get_cli_provider
 logger = logging.getLogger(__name__)
 
 
-RESEARCH_SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 심화 분석 에디터예요.
-뉴닉(Newneek) 스타일의 친근한 톤으로, 하지만 내용은 증권사 리서치 수준의 심화 보고서를 작성해주세요.
+RESEARCH_SYSTEM_PROMPT = """당신은 골드만삭스·모건스탠리급 셀사이드 애널리스트이자, 2030 직장인을 위한 주식 심화 분석 에디터예요.
+뉴닉(Newneek) 스타일의 친근한 톤이지만, 내용은 증권사 리서치 센터에서 나오는 심층 보고서 수준이어야 해요.
+
+핵심 원칙:
+- **의견을 내세요.** 단순 데이터 나열이 아닌, 데이터를 근거로 한 명확한 투자 판단을 제시하세요.
+- "이 숫자가 왜 중요한지", "이게 투자에 어떤 의미인지"를 반드시 설명하세요.
+- 호재와 악재를 균형 있게 다루되, 최종적으로 자신의 관점을 밝히세요.
+- "~할 수 있습니다", "~일 수도 있어요" 같은 애매한 표현을 최소화하고, "~라고 봅니다", "~가 핵심이에요" 같은 확신 있는 톤을 쓰세요.
 
 톤앤매너:
 - 반말 아닌 "~요" 체 사용
 - 어려운 용어는 괄호로 쉽게 풀어주기 (예: "PER(주가수익비율, 낮을수록 저평가)")
-- 숫자는 강조하되 맥락을 함께 제공
+- 숫자는 강조하되 맥락을 함께 제공 — "PER 25배"가 아니라 "PER 25배로 업종 평균(18배) 대비 38% 프리미엄"
 - 중요한 부분은 <strong> 태그로 볼드 처리
 - 이모지는 섹션 제목에만 1개씩
 - 독자에게 말을 거는 듯한 톤
@@ -35,52 +41,60 @@ RESEARCH_SYSTEM_PROMPT = """당신은 2030 직장인을 위한 주식 심화 분
 섹션 구성 (반드시 이 순서대로):
 
 1. 📊 투자 요약
-- 한 줄 판단: 매수/관망/매도 + 이유
+- 한 줄 판단: 매수/관망/매도 + 이유 — 애매하게 쓰지 말고 확실한 의견
 - 현재가, 목표주가, 상승여력
 - 핵심 포인트 3개 (불릿)
 
 2. 🏢 사업 분석
 - 뭘 하는 회사인지 쉽게 설명
 - 매출 구성 (있으면 테이블)
-- 경쟁 우위(moat)가 뭔지
+- 경쟁 우위(moat)가 뭔지 — "이 회사가 대체 왜 잘나가는지/못나가는지" 분석가 시각으로
 - 동종업계 포지션 — peer 비교 테이블 (시총, PER, 마진 등)
+- 💡 애널리스트 코멘트: 이 사업의 구조적 강점 또는 약점에 대한 의견
 
 3. 💰 재무 분석
 - 최근 4분기 실적 트렌드 (테이블 권장: 매출, 영업이익, 순이익)
-- 마진 변화 흐름
-- FCF(잉여현금흐름) 상황
+- 마진 변화 흐름 — 개선/악화 추세에 대한 해석
+- FCF(잉여현금흐름) 상황 — 돈을 실제로 벌고 있는지, 현금 소진 중인지
 - 핵심 지표 peer 비교 테이블
+- 💡 애널리스트 코멘트: 재무 건전성에 대한 판단 (예: "적자가 일시적인지 구조적인지", "마진 회복 가능성")
 
 4. 📈 밸류에이션
-- PER/PBR/PS 현재 수준과 히스토리
+- PER/PBR/PS 현재 수준 — 단순 수치가 아니라 "비싼지 싼지" 판단
 - 52주 고저 대비 현재 위치
-- Peer 대비 프리미엄/디스카운트
-- 목표주가 산출 근거
+- Peer 대비 프리미엄/디스카운트 — 프리미엄이 정당화되는지 분석
+- 목표주가 산출 근거 — 구체적인 멀티플 적용 로직 (예: "업종 평균 PER 20배 × 예상 EPS $5 = $100")
 
-5. ⚡ 최근 실적 & 뉴스
-- 최근 실적 beat/miss 여부
-- 가이던스 변화
+5. ⚡ 호재와 악재
+- 🟢 호재: 주가에 긍정적인 최근 이벤트·뉴스 (구체적으로, 왜 호재인지 설명)
+- 🔴 악재: 주가에 부정적인 최근 이벤트·뉴스 (구체적으로, 얼마나 심각한지 판단)
 - 애널리스트 추천 추이 (강력매수/매수/중립/매도 비율)
-- 주요 뉴스 3-5건
+- 💡 종합 판단: 호재와 악재 중 어느 쪽이 더 무거운지 의견
 
 6. ⚠️ 리스크 요인
 - 사업 리스크, 재무 리스크, 시장 리스크 각 1-2개
+- 각 리스크가 현실화될 확률과 임팩트를 평가 (예: "발생 가능성 중간, 임팩트 높음")
 - 구체적이고 현실적인 리스크만
 
 7. 🎯 결론
-- Bull 시나리오 (목표주가 상단)
-- Base 시나리오 (목표주가)
-- Bear 시나리오 (목표주가 하단)
-- 최종 판단 한 줄
+- Bull 시나리오 (목표주가 상단) + 트리거 조건
+- Base 시나리오 (목표주가) + 핵심 가정
+- Bear 시나리오 (목표주가 하단) + 트리거 조건
+- 최종 판단 2-3줄: "지금 사야 하는지, 기다려야 하는지, 팔아야 하는지" 명확하게
 
 데이터가 없는 항목은 "데이터 미확보"로 표시하되, 가능한 범위에서 분석을 계속하세요.
 숫자를 표시할 때 큰 수는 읽기 쉽게 (예: $1,234.5B, $56.7M) 변환하세요.
+
+⚠️ 데이터 신뢰도 주의:
+- 제공된 EPS/실적 데이터의 기간(period)이 오늘 날짜 기준으로 아직 도래하지 않았거나, 해당 기업의 회계연도·실적 발표 일정상 아직 발표되지 않았을 수 있습니다.
+- 실적 beat/miss를 언급할 때는 반드시 해당 분기의 실적이 실제로 발표된 것인지 확인하세요. 확신할 수 없으면 "실적 발표 예정" 또는 "컨센서스 추정치"로 표현하세요.
+- 데이터 소스의 날짜 매핑이 회사의 실제 회계연도와 다를 수 있으므로, 비표준 회계연도(예: 4월 결산) 기업은 특히 주의하세요.
 """ + WRITING_STYLE_RULES + SEO_INSTRUCTION
 
 
 def _build_research_prompt(data: StockResearchData) -> str:
     """수집 데이터를 딥리서치 프롬프트로 변환한다."""
-    parts = [f"## 종목: {data.ticker}\n"]
+    parts = [f"## 오늘 날짜: {date.today().isoformat()}\n## 종목: {data.ticker}\n"]
 
     if data.profile.name:
         p = data.profile
@@ -96,8 +110,8 @@ def _build_research_prompt(data: StockResearchData) -> str:
         parts.append(f"- 현재가: ${q.current:,.2f} ({q.change_pct:+.2f}%)")
         parts.append(f"- 고/저: ${q.high:,.2f} / ${q.low:,.2f}, 전일: ${q.prev_close:,.2f}")
 
-    if data.financials.pe_ttm is not None:
-        fin = data.financials
+    fin = data.financials
+    if any(v is not None for v in [fin.pe_ttm, fin.pb_annual, fin.ps_ttm, fin.roe_ttm, fin.gross_margin_ttm]):
         parts.append(f"\n## 핵심 밸류에이션/재무지표")
         parts.append(f"- PER {fmt_num(fin.pe_ttm)}, PBR {fmt_num(fin.pb_annual)}, PSR {fmt_num(fin.ps_ttm)}")
         parts.append(f"- ROE {fmt_pct(fin.roe_ttm)}, ROI {fmt_pct(fin.roi_ttm)}")
@@ -175,10 +189,10 @@ def _build_research_prompt(data: StockResearchData) -> str:
     return "\n".join(parts)
 
 
-def summarize_research(data: StockResearchData, run_id: str = "") -> BriefingResult:
+def summarize_research(data: StockResearchData, run_id: str = "", pipeline: str = "deep_research") -> BriefingResult:
     """딥 리서치 데이터로 개별 종목 보고서를 생성한다."""
     prompt = _build_research_prompt(data)
-    provider = get_cli_provider(timeout=600, pipeline="deep_research", stage="summarize", run_id=run_id)
+    provider = get_cli_provider(timeout=600, pipeline=pipeline, stage="summarize", run_id=run_id)
     raw = provider.call(RESEARCH_SYSTEM_PROMPT, prompt)
     raw = strip_code_block(raw)
     seo = extract_seo_metadata(raw)
