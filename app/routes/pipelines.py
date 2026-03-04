@@ -19,6 +19,7 @@ from app.pipeline.research import run_news_dive_pipeline
 from app.pipeline.issue_dive import run_issue_dive_pipeline
 from app.pipeline.real_estate import run_real_estate_pipeline
 from app.pipeline.stock_deep_dive import run_stock_deep_dive_pipeline
+from app.pipeline.chart_analysis import run_chart_analysis_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ PIPELINES: list[dict[str, Any]] = [
         "id": "kospi",
         "name": "KOSPI 브리핑",
         "description": "국내 증시 요약 브리핑을 생성합니다.",
-        "schedule": "화–토 07:00",
+        "schedule": "월–금 20:00",
         "func": run_pipeline,
     },
     {
@@ -81,6 +82,14 @@ PIPELINES: list[dict[str, Any]] = [
         "description": "개별 종목을 심층 분석합니다. 티커를 입력하거나 비워두면 AI가 자동 선정합니다.",
         "schedule": "매일 11:00",
         "func": run_stock_deep_dive_pipeline,
+        "has_ticker_input": True,
+    },
+    {
+        "id": "chart_analysis",
+        "name": "차트 기술적 분석",
+        "description": "개별 종목의 기술적 분석 리포트를 생성합니다. (HTML 파일 출력)",
+        "schedule": "수동 실행",
+        "func": run_chart_analysis_pipeline,
         "has_ticker_input": True,
     },
 ]
