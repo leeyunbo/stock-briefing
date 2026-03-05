@@ -71,13 +71,12 @@ class KospiContext(PipelineContext, total=False):
 # ── 파이프라인 단계 (각각 독립 함수) ──
 
 
-def _is_market_closed_yesterday(market_date_str: str) -> bool:
-    """시장 데이터 날짜가 전날이 아니면 휴장으로 판단한다."""
+def _is_market_closed_today(market_date_str: str) -> bool:
+    """시장 데이터 날짜가 오늘이 아니면 휴장으로 판단한다."""
     if not market_date_str:
         return False
     market_date = date.fromisoformat(market_date_str)
-    yesterday = date.today() - timedelta(days=1)
-    return market_date < yesterday
+    return market_date < date.today()
 
 
 async def collect_data() -> CollectedData:
@@ -104,7 +103,7 @@ async def collect_data() -> CollectedData:
     except Exception as e:
         logger.warning("전일 나스닥 조회 실패 (무시): %s", e)
 
-    is_closed = _is_market_closed_yesterday(market.date)
+    is_closed = _is_market_closed_today(market.date)
 
     if is_closed:
         logger.info("전일 휴장 감지 (market.date=%s) — 뉴스만 수집", market.date)

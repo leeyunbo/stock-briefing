@@ -350,6 +350,24 @@
             color: #b0b8c1;
         }
 
+        /* HTML-only checkbox */
+        .html-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #6b7684;
+            cursor: pointer;
+            user-select: none;
+        }
+        .html-option input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #3182f6;
+            cursor: pointer;
+        }
+
         /* Animation */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(6px); }
@@ -385,6 +403,12 @@
                     {% if p.get('has_ticker_input', False) %}
                     <input type="text" class="ticker-input" id="ticker-{{ p.id }}"
                            placeholder="티커 입력 (예: NVDA, 005930, 삼성전자) — 비워두면 AI 자동 선택">
+                    {% endif %}
+                    {% if p.get('has_html_option', False) %}
+                    <label class="html-option" id="html-opt-{{ p.id }}">
+                        <input type="checkbox" id="html-only-{{ p.id }}">
+                        <span>HTML 파일로만 저장 (WordPress 발행 안 함)</span>
+                    </label>
                     {% endif %}
                     {% if p.get('has_topic_input', False) %}
                     <textarea class="topic-input" id="topic-{{ p.id }}" rows="3"
@@ -439,14 +463,16 @@
             bar.className = 'status-bar running';
             bar.innerHTML = '<span class="spinner-sm"></span>파이프라인 실행 중…';
 
-            // ticker/topic 입력이 있으면 JSON body로 전송
+            // ticker/topic/html_only 입력이 있으면 JSON body로 전송
             const tickerInput = document.getElementById('ticker-' + id);
             const topicInput = document.getElementById('topic-' + id);
+            const htmlOnlyInput = document.getElementById('html-only-' + id);
             const fetchOpts = { method: 'POST' };
-            if (tickerInput || topicInput) {
+            if (tickerInput || topicInput || htmlOnlyInput) {
                 const payload = {};
                 if (tickerInput) payload.ticker = tickerInput.value.trim();
                 if (topicInput) payload.topic = topicInput.value.trim();
+                if (htmlOnlyInput && htmlOnlyInput.checked) payload.html_only = true;
                 fetchOpts.headers = { 'Content-Type': 'application/json' };
                 fetchOpts.body = JSON.stringify(payload);
             }

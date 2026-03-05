@@ -83,6 +83,7 @@ PIPELINES: list[dict[str, Any]] = [
         "schedule": "매일 11:00",
         "func": run_stock_deep_dive_pipeline,
         "has_ticker_input": True,
+        "has_html_option": True,
     },
     {
         "id": "chart_analysis",
@@ -194,6 +195,9 @@ async def run(pipeline_id: str, request: Request):
         ticker_val = body.get("ticker", "").strip()
         if ticker_val:
             extra_kwargs["ticker"] = ticker_val
+
+    if target.get("has_html_option") and body.get("html_only"):
+        extra_kwargs["html_only"] = True
 
     if target.get("has_topic_input"):
         topic_val = body.get("topic", "").strip() if isinstance(body.get("topic"), str) else ""

@@ -127,7 +127,7 @@
         <mxCell id="L3_title" parent="1" style="text;fontSize=13;fontStyle=1;fontColor=#4E5968;letterSpacing=1;" value="PIPELINES   app/pipeline/" vertex="1">
           <mxGeometry height="22" width="280" x="42" y="374" as="geometry" />
         </mxCell>
-        <mxCell id="p1" parent="1" style="rounded=1;fillColor=#E8FAF0;strokeColor=#00B853;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="KOSPI 브리핑&#xa;화~토 07:00" vertex="1">
+        <mxCell id="p1" parent="1" style="rounded=1;fillColor=#E8FAF0;strokeColor=#00B853;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="KOSPI 브리핑&#xa;월~금 20:00" vertex="1">
           <mxGeometry height="66" width="125" x="12" y="401" as="geometry" />
         </mxCell>
         <mxCell id="p2" parent="1" style="rounded=1;fillColor=#E8F3FF;strokeColor=#3182F6;fontSize=11;fontStyle=1;whiteSpace=wrap;" value="NASDAQ 브리핑&#xa;화~토 08:00" vertex="1">
@@ -265,7 +265,7 @@
         <mxCell id="sched_t" parent="1" style="text;fontSize=15;fontStyle=1;fontColor=#FFFFFF;align=center;" value="APScheduler" vertex="1">
           <mxGeometry height="24" width="195" x="1110" y="56" as="geometry" />
         </mxCell>
-        <mxCell id="sched_body" parent="1" style="text;fontSize=10;fontColor=#B0B8C1;fontFamily=Courier New;align=left;verticalAlign=top;spacingLeft=14;spacingTop=6;whiteSpace=wrap;" value="07:00  KOSPI 브리핑&#xa;08:00  NASDAQ 브리핑&#xa;09:00  뉴스 딥다이브&#xa;10:00  이슈 딥다이브&#xa;11:00  주식 딥다이브&#xa;15:00  이슈 딥다이브&#xa;21:00  이슈 딥다이브&#xa;월 07:00  부동산&#xa;22:00  데일리 다이제스트" vertex="1">
+        <mxCell id="sched_body" parent="1" style="text;fontSize=10;fontColor=#B0B8C1;fontFamily=Courier New;align=left;verticalAlign=top;spacingLeft=14;spacingTop=6;whiteSpace=wrap;" value="08:00  NASDAQ 브리핑&#xa;09:00  뉴스 딥다이브&#xa;10:00  이슈 딥다이브&#xa;11:00  주식 딥다이브&#xa;15:00  이슈 딥다이브&#xa;21:00  이슈 딥다이브&#xa;20:00  KOSPI 브리핑&#xa;월 07:00  부동산&#xa;22:00  데일리 다이제스트" vertex="1">
           <mxGeometry height="215" width="195" x="1110" y="84" as="geometry" />
         </mxCell>
         <mxCell id="sched_arr" edge="1" parent="1" style="rounded=1;strokeColor=#8B95A1;strokeWidth=2;dashed=1;dashPattern=8 4;fontSize=11;fontColor=#8B95A1;fontStyle=2;endArrow=classic;endFill=1;" value="cron 트리거">

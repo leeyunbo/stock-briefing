@@ -17,15 +17,18 @@ def start_scheduler():
     """APScheduler로 브리핑을 스케줄링한다."""
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-    scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
+    scheduler = AsyncIOScheduler(
+        timezone="Asia/Seoul",
+        job_defaults={"misfire_grace_time": 300},
+    )
 
-    # 한국 주식 브리핑: 화~토 오전 7시
+    # 한국 주식 브리핑: 월~금 오후 8시 (당일 장마감 후)
     scheduler.add_job(
         run_pipeline,
         trigger="cron",
-        hour=7,
+        hour=20,
         minute=0,
-        day_of_week="tue-sat",
+        day_of_week="mon-fri",
         id="daily_briefing",
         kwargs={"email_to": []},
     )
@@ -92,5 +95,5 @@ def start_scheduler():
     )
 
     scheduler.start()
-    logger.info("스케줄러 시작: 한국 화~토 7시, 나스닥 화~토 8시, 뉴스딥다이브 매일 9시, 이슈딥다이브 매일 10/15/21시, 종목딥다이브 매일 11시, 부동산 월 7시, 다이제스트 매일 22시")
+    logger.info("스케줄러 시작: 한국 월~금 20시, 나스닥 화~토 8시, 뉴스딥다이브 매일 9시, 이슈딥다이브 매일 10/15/21시, 종목딥다이브 매일 11시, 부동산 월 7시, 다이제스트 매일 22시")
     return scheduler
