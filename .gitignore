@@ -17,3 +17,4 @@ service-account.json
 *.zip
 data/chroma/
 wordpress-theme/
+output/

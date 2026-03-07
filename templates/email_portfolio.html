@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #F4F5F7; -webkit-text-size-adjust: 100%;">
+<table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #F4F5F7; font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;">
+<tr><td align="center" style="padding: 32px 16px;">
+
+<!-- Main Card -->
+<table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+
+    <!-- Logo -->
+    <tr>
+        <td style="padding: 28px 32px 0 32px;">
+            <table cellpadding="0" cellspacing="0" border="0"><tr>
+                <td style="width: 8px; height: 8px; background-color: #3182F6; border-radius: 50%;"></td>
+                <td style="padding-left: 8px; font-size: 14px; font-weight: 700; color: #3182F6; letter-spacing: -0.3px;">Moneydive</td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <!-- Hero -->
+    <tr>
+        <td style="padding: 32px 32px 0 32px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background: linear-gradient(135deg, #3182F6, #1B64DA); border-radius: 16px; overflow: hidden;">
+                <tr>
+                    <td align="center" style="padding: 48px 32px;">
+                        <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7); letter-spacing: -0.2px;">AI Portfolio</p>
+                        <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #FFFFFF; line-height: 1.4; letter-spacing: -0.8px;">Day {{ day_number }} &middot; {{ date_str }}</h1>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+
+    <!-- 누적 수익률 + 현금 비중 -->
+    <tr>
+        <td style="padding: 32px 32px 0 32px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                    <td width="50%" style="padding-right: 6px;">
+                        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-radius: 12px; overflow: hidden; {% if total_return_pct >= 0 %}background-color: #E8F5E9;{% else %}background-color: #FFEBEE;{% endif %}">
+                            <tr>
+                                <td align="center" style="padding: 24px 12px;">
+                                    <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 600; color: #8B95A1;">누적 수익률</p>
+                                    <p style="margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -1px; {% if total_return_pct >= 0 %}color: #2E7D32;{% else %}color: #C62828;{% endif %}">
+                                        {% if total_return_pct >= 0 %}+{% endif %}{{ "%.2f"|format(total_return_pct) }}%
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td width="50%" style="padding-left: 6px;">
+                        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-radius: 12px; overflow: hidden; background-color: #F3F4F6;">
+                            <tr>
+                                <td align="center" style="padding: 24px 12px;">
+                                    <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 600; color: #8B95A1;">현금 비중</p>
+                                    <p style="margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -1px; color: #3182F6;">
+                                        {{ "%.1f"|format(cash_weight_pct) }}%
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+
+    <!-- 시장 전망 카드 -->
+    {% if market_view %}
+    <tr>
+        <td style="padding: 24px 32px 0 32px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #F8F9FA; border-radius: 12px; border-left: 4px solid #3182F6;">
+                <tr>
+                    <td style="padding: 16px 20px;">
+                        <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 700; color: #3182F6;">시장 전망</p>
+                        <p style="margin: 0; font-size: 14px; line-height: 1.7; color: #4E5968;">{{ market_view }}</p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    {% endif %}
+
+    <!-- 보유 현황 테이블 -->
+    <tr>
+        <td style="padding: 24px 32px 0 32px;">
+            <p style="margin: 0 0 12px 0; font-size: 15px; font-weight: 700; color: #191F28; letter-spacing: -0.3px;">보유 현황</p>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size: 13px;">
+                <tr style="background-color: #F8F9FA;">
+                    <td style="padding: 8px 10px; font-weight: 600; color: #6B7684; border-bottom: 1px solid #E5E8EB;">종목</td>
+                    <td align="right" style="padding: 8px 10px; font-weight: 600; color: #6B7684; border-bottom: 1px solid #E5E8EB;">비중</td>
+                    <td align="right" style="padding: 8px 10px; font-weight: 600; color: #6B7684; border-bottom: 1px solid #E5E8EB;">편입가</td>
+                    <td align="right" style="padding: 8px 10px; font-weight: 600; color: #6B7684; border-bottom: 1px solid #E5E8EB;">현재가</td>
+                    <td align="right" style="padding: 8px 10px; font-weight: 600; color: #6B7684; border-bottom: 1px solid #E5E8EB;">수익률</td>
+                </tr>
+                {% for row in pnl %}
+                <tr>
+                    <td style="padding: 8px 10px; color: #191F28; border-bottom: 1px solid #F2F4F6;">
+                        <strong>{{ row.ticker }}</strong><br>
+                        <span style="font-size: 11px; color: #8B95A1;">{{ row.name }}</span>
+                    </td>
+                    <td align="right" style="padding: 8px 10px; color: #4E5968; border-bottom: 1px solid #F2F4F6;">{{ "%.1f"|format(row.weight_pct) }}%</td>
+                    <td align="right" style="padding: 8px 10px; color: #4E5968; border-bottom: 1px solid #F2F4F6;">${{ "%.2f"|format(row.entry_price) }}</td>
+                    <td align="right" style="padding: 8px 10px; color: #4E5968; border-bottom: 1px solid #F2F4F6;">${{ "%.2f"|format(row.current_price) }}</td>
+                    <td align="right" style="padding: 8px 10px; font-weight: 600; border-bottom: 1px solid #F2F4F6; {% if row.return_pct >= 0 %}color: #2E7D32;{% else %}color: #C62828;{% endif %}">
+                        {% if row.return_pct >= 0 %}+{% endif %}{{ "%.2f"|format(row.return_pct) }}%
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </td>
+    </tr>
+
+    <!-- 변경 사항 -->
+    {% if changes %}
+    <tr>
+        <td style="padding: 24px 32px 0 32px;">
+            <p style="margin: 0 0 12px 0; font-size: 15px; font-weight: 700; color: #191F28; letter-spacing: -0.3px;">변경 사항</p>
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size: 13px;">
+                {% for c in changes %}
+                <tr>
+                    <td style="padding: 10px 12px; border-bottom: 1px solid #F2F4F6;">
+                        <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;
+                            {% if c.action == 'ADD' %}background-color: #E8F5E9; color: #2E7D32;
+                            {% elif c.action == 'REMOVE' %}background-color: #FFEBEE; color: #C62828;
+                            {% else %}background-color: #E3F2FD; color: #1565C0;{% endif %}">{{ c.action }}</span>
+                        <strong style="margin-left: 8px; color: #191F28;">{{ c.ticker }}</strong>
+                        <span style="color: #8B95A1;"> {{ c.name }}</span>
+                        {% if c.action != 'REMOVE' %}
+                        <span style="color: #4E5968;"> &rarr; {{ "%.1f"|format(c.new_weight_pct) }}%</span>
+                        {% endif %}
+                        <br>
+                        <span style="font-size: 12px; color: #6B7684; margin-left: 4px;">{{ c.reason }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </td>
+    </tr>
+    {% endif %}
+
+    <!-- Spacer -->
+    <tr><td style="padding: 32px 0 0 0;"></td></tr>
+
+</table>
+<!-- End Main Card -->
+
+<!-- Footer -->
+<table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; margin-top: 20px;">
+    <tr>
+        <td align="center" style="padding: 8px 0;">
+            <span style="font-size: 11px; color: #8B95A1;">Moneydive &middot; AI Portfolio</span>
+        </td>
+    </tr>
+    <tr>
+        <td align="center" style="padding: 0 0 4px 0;">
+            <span style="font-size: 11px; color: #B0B8C1;">AI가 공개 데이터를 바탕으로 구성한 가상 포트폴리오이며, 투자 권유가 아닙니다.</span>
+        </td>
+    </tr>
+</table>
+
+</td></tr>
+</table>
+</body>
+</html>

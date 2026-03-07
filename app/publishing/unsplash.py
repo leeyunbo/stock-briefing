@@ -1,6 +1,7 @@
 """Unsplash API로 키워드 기반 이미지를 가져온다."""
 
 import logging
+import random
 
 import httpx
 
@@ -39,21 +40,21 @@ async def fetch_unsplash_image(
             for kw in keywords:
                 resp = await client.get(
                     f"{UNSPLASH_API}/search/photos",
-                    params={"query": kw, "per_page": 1, "orientation": orientation},
+                    params={"query": kw, "per_page": 10, "orientation": orientation},
                     headers={"Authorization": f"Client-ID {access_key}"},
                 )
                 tried.append(kw)
                 if resp.status_code == 200:
                     results = resp.json().get("results", [])
                     if results:
-                        logger.info("Unsplash 검색 성공: '%s' (시도: %s)", kw, tried)
+                        logger.info("Unsplash 검색 성공: '%s' (%d건, 시도: %s)", kw, len(results), tried)
                         break
 
             if not results:
                 logger.warning("Unsplash 검색 결과 없음: keywords=%s", tried)
                 return None
 
-            photo = results[0]
+            photo = random.choice(results)
             image_url = photo["urls"]["regular"]  # 1080px
             photographer = photo["user"]["name"]
             download_location = photo.get("links", {}).get("download_location", "")
