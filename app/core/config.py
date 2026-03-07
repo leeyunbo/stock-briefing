@@ -61,6 +61,12 @@ class Settings(BaseSettings):
     # OG Image
     og_font_path: str = "/System/Library/Fonts/AppleSDGothicNeo.ttc"
 
+    # Upbit (코인 자동매매)
+    upbit_access_key: str = ""
+    upbit_secret_key: str = ""
+    upbit_trading_enabled: bool = False  # True일 때만 실제 주문 실행
+    upbit_initial_capital: int = 100_000  # 초기 자본금 (원)
+
     # Database
     database_url: str = "sqlite+aiosqlite:///briefing.db"
 

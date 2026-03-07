@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Trading - Stock Briefing</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f7f8fa;
+            color: #191f28;
+            min-height: 100vh;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+
+        /* Header */
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+        .header h1 { font-size: 26px; font-weight: 800; letter-spacing: -1px; }
+        .header .subtitle { font-size: 14px; color: #8b95a1; font-weight: 500; margin-top: 4px; }
+        .back-link { color: #8b95a1; text-decoration: none; font-size: 14px; font-weight: 500; }
+        .back-link:hover { color: #3182f6; }
+
+        /* Status badge */
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+        }
+        .status-badge.live { background: #e8faf0; color: #00b853; }
+        .status-badge.dry { background: #fff8e1; color: #e67e22; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-badge.live .status-dot { background: #00b853; animation: pulse 2s infinite; }
+        .status-badge.dry .status-dot { background: #e67e22; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* Summary cards */
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+        .summary-card {
+            background: #fff; border: 1px solid #e5e8eb; border-radius: 14px; padding: 18px;
+        }
+        .summary-label { font-size: 12px; color: #8b95a1; font-weight: 500; margin-bottom: 6px; }
+        .summary-value { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+        .summary-sub { font-size: 12px; color: #8b95a1; margin-top: 4px; }
+        .positive { color: #f04452; }
+        .negative { color: #3182f6; }
+        .zero { color: #8b95a1; }
+
+        /* Section */
+        .section {
+            background: #fff; border: 1px solid #e5e8eb; border-radius: 16px;
+            padding: 24px; margin-bottom: 16px;
+        }
+        .section-title {
+            font-size: 16px; font-weight: 700; letter-spacing: -0.5px;
+            margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+        }
+        .section-title .badge {
+            font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+            background: #f2f4f6; color: #6b7684;
+        }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; color: #8b95a1; font-weight: 500; padding: 8px 10px; border-bottom: 1px solid #e5e8eb; }
+        td { padding: 10px; border-bottom: 1px solid #f2f4f6; }
+        tr:last-child td { border-bottom: none; }
+        .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; }
+        .text-right { text-align: right; }
+
+        /* Trade side badge */
+        .side-buy { color: #f04452; font-weight: 600; }
+        .side-sell { color: #3182f6; font-weight: 600; }
+        .signal-rule { background: #f2f4f6; color: #6b7684; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+        .signal-ai { background: #e8f3ff; color: #3182f6; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+
+        /* Strategy mode */
+        .mode-badge {
+            display: inline-flex; padding: 4px 12px; border-radius: 8px;
+            font-size: 13px; font-weight: 600;
+        }
+        .mode-aggressive { background: #fff0f0; color: #f04452; }
+        .mode-moderate { background: #fff8e1; color: #e67e22; }
+        .mode-defensive { background: #e8f3ff; color: #3182f6; }
+
+        /* Chart placeholder */
+        .chart-area { width: 100%; height: 200px; position: relative; }
+        .chart-canvas { width: 100%; height: 100%; }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .container { padding: 32px 16px 60px; }
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            table { font-size: 12px; }
+            th, td { padding: 6px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div>
+            <h1>Crypto Trading</h1>
+            <div class="subtitle">
+                AI 코인 자동매매
+                {% if trading_enabled %}
+                <span class="status-badge live"><span class="status-dot"></span>LIVE</span>
+                {% else %}
+                <span class="status-badge dry"><span class="status-dot"></span>DRY RUN</span>
+                {% endif %}
+            </div>
+        </div>
+        <a class="back-link" href="/pipelines">← Pipelines</a>
+    </div>
+
+    <!-- Summary Cards -->
+    {% set latest = snapshots[-1] if snapshots else None %}
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="summary-label">총자산</div>
+            <div class="summary-value">{{ "{:,.0f}".format(latest.total_krw if latest else 0) }}<span style="font-size:14px;">원</span></div>
+            <div class="summary-sub">초기자본 {{ "{:,.0f}".format(initial_capital) }}원</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">수익률</div>
+            {% set ret = latest.return_pct if latest else 0 %}
+            <div class="summary-value {{ 'positive' if ret > 0 else 'negative' if ret < 0 else 'zero' }}">
+                {{ "{:+.2f}".format(ret) }}%
+            </div>
+            <div class="summary-sub">{{ "{:+,.0f}".format((latest.total_krw - initial_capital) if latest else 0) }}원</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">현금</div>
+            <div class="summary-value">{{ "{:,.0f}".format(latest.cash_krw if latest else 0) }}<span style="font-size:14px;">원</span></div>
+            {% set cash_pct = (latest.cash_krw / latest.total_krw * 100) if latest and latest.total_krw > 0 else 0 %}
+            <div class="summary-sub">{{ "{:.1f}".format(cash_pct) }}%</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">오늘 거래</div>
+            <div class="summary-value">{{ today_trade_count }}건</div>
+            <div class="summary-sub">수수료 {{ "{:,.0f}".format(today_total_fee) }}원</div>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    {% if snapshots|length > 1 %}
+    <div class="section">
+        <div class="section-title">자산 추이</div>
+        <div class="chart-area">
+            <canvas class="chart-canvas" id="assetChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Strategy -->
+    {% if strategy %}
+    <div class="section">
+        <div class="section-title">
+            AI 전략
+            <span class="mode-badge mode-{{ strategy.mode }}">{{ strategy.mode }}</span>
+        </div>
+        <table>
+            <tr><td style="width:140px;color:#8b95a1;">RSI 매수 기준</td><td>{{ strategy.rsi_buy_threshold }}</td></tr>
+            <tr><td style="color:#8b95a1;">RSI 매도 기준</td><td>{{ strategy.rsi_sell_threshold }}</td></tr>
+            <tr><td style="color:#8b95a1;">최대 포지션</td><td>{{ strategy.max_position_pct }}%</td></tr>
+            <tr><td style="color:#8b95a1;">AI 판단</td><td style="line-height:1.6;">{{ strategy.ai_reasoning }}</td></tr>
+            <tr><td style="color:#8b95a1;">업데이트</td><td class="mono">{{ strategy.updated_at.strftime('%m/%d %H:%M') }}</td></tr>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Positions -->
+    <div class="section">
+        <div class="section-title">보유 포지션 <span class="badge">{{ positions|length }}종목</span></div>
+        {% if positions %}
+        <table>
+            <thead>
+                <tr>
+                    <th>코인</th>
+                    <th class="text-right">수량</th>
+                    <th class="text-right">평단가</th>
+                    <th class="text-right">현재가</th>
+                    <th class="text-right">수익률</th>
+                    <th class="text-right">평가금</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in positions %}
+                {% set lp = latest_positions.get(p.market, {}) %}
+                {% set cur_price = lp.get('current_price', p.avg_price) if lp else p.avg_price %}
+                {% set ret_pct = lp.get('return_pct', 0) if lp else 0 %}
+                {% set mkt_val = p.quantity * cur_price %}
+                <tr>
+                    <td><strong>{{ p.market.replace('KRW-', '') }}</strong></td>
+                    <td class="text-right mono">{{ "{:.4f}".format(p.quantity) }}</td>
+                    <td class="text-right mono">{{ "{:,.0f}".format(p.avg_price) }}</td>
+                    <td class="text-right mono">{{ "{:,.0f}".format(cur_price) }}</td>
+                    <td class="text-right {{ 'positive' if ret_pct > 0 else 'negative' if ret_pct < 0 else 'zero' }}">
+                        {{ "{:+.2f}".format(ret_pct) }}%
+                    </td>
+                    <td class="text-right mono">{{ "{:,.0f}".format(mkt_val) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#8b95a1;font-size:14px;">보유 포지션 없음</p>
+        {% endif %}
+    </div>
+
+    <!-- Trades -->
+    <div class="section">
+        <div class="section-title">최근 거래 <span class="badge">{{ trades|length }}건</span></div>
+        {% if trades %}
+        <table>
+            <thead>
+                <tr>
+                    <th>시간</th>
+                    <th>코인</th>
+                    <th>구분</th>
+                    <th class="text-right">금액</th>
+                    <th>신호</th>
+                    <th>사유</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in trades %}
+                <tr>
+                    <td class="mono">{{ t.trade_date.strftime('%m/%d %H:%M') }}</td>
+                    <td><strong>{{ t.market.replace('KRW-', '') }}</strong></td>
+                    <td><span class="side-{{ t.side.lower() }}">{{ t.side }}</span></td>
+                    <td class="text-right mono">{{ "{:,.0f}".format(t.amount_krw) }}원</td>
+                    <td><span class="signal-{{ t.signal_type.lower() }}">{{ t.signal_type }}</span></td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#6b7684;">{{ t.reason }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#8b95a1;font-size:14px;">거래 내역 없음</p>
+        {% endif %}
+    </div>
+
+    <!-- Snapshots -->
+    {% if snapshots %}
+    <div class="section">
+        <div class="section-title">일별 스냅샷</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>날짜</th>
+                    <th class="text-right">총자산</th>
+                    <th class="text-right">현금</th>
+                    <th class="text-right">투자</th>
+                    <th class="text-right">수익률</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in snapshots|reverse %}
+                <tr>
+                    <td class="mono">{{ s.snapshot_date.strftime('%m/%d') }}</td>
+                    <td class="text-right mono">{{ "{:,.0f}".format(s.total_krw) }}원</td>
+                    <td class="text-right mono">{{ "{:,.0f}".format(s.cash_krw) }}원</td>
+                    <td class="text-right mono">{{ "{:,.0f}".format(s.invested_krw) }}원</td>
+                    <td class="text-right {{ 'positive' if s.return_pct > 0 else 'negative' if s.return_pct < 0 else 'zero' }}">
+                        {{ "{:+.2f}".format(s.return_pct) }}%
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+{% if snapshots|length > 1 %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+    const ctx = document.getElementById('assetChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_dates|safe }},
+            datasets: [{
+                label: '총자산 (원)',
+                data: {{ chart_values|safe }},
+                borderColor: '#3182f6',
+                backgroundColor: 'rgba(49,130,246,0.08)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+                pointBackgroundColor: '#3182f6',
+                borderWidth: 2,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => ctx.parsed.y.toLocaleString() + '원'
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false } },
+                y: {
+                    grid: { color: '#f2f4f6' },
+                    ticks: { callback: v => (v/10000).toFixed(0) + '만' }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+</body>
+</html>

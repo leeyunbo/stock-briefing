@@ -20,6 +20,7 @@ from app.pipeline.issue_dive import run_issue_dive_pipeline
 from app.pipeline.real_estate import run_real_estate_pipeline
 from app.pipeline.stock_deep_dive import run_stock_deep_dive_pipeline
 from app.pipeline.chart_analysis import run_chart_analysis_pipeline
+from app.pipeline.portfolio import run_portfolio_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ BRIEFING_TYPE_MAP: dict[str, str] = {
     "issue_dive": BriefingType.ISSUE_DIVE,
     "real_estate": BriefingType.REAL_ESTATE,
     "stock_deep_dive": BriefingType.STOCK_DEEP_DIVE,
+    "portfolio": BriefingType.PORTFOLIO,
 }
 
 # ── 파이프라인 정의 ──────────────────────────────────────────
@@ -93,16 +95,28 @@ PIPELINES: list[dict[str, Any]] = [
         "func": run_chart_analysis_pipeline,
         "has_ticker_input": True,
     },
+    {
+        "id": "portfolio",
+        "name": "AI 포트폴리오",
+        "description": "NASDAQ 100 기반 AI 가상 포트폴리오를 운용합니다. 일일 리뷰 + 이메일 발송.",
+        "schedule": "화–토 08:30",
+        "func": run_portfolio_pipeline,
+    },
 ]
 
 # ── 인메모리 실행 상태 ────────────────────────────────────────
 _run_state: dict[str, dict[str, Any]] = {}
 
 
+_USE_DEFAULT_EMAIL = {"portfolio"}  # 자체 기본 수신자를 사용하는 파이프라인
+
+
 async def _execute(pipeline_id: str, func, **kwargs):
     """파이프라인을 실행하고 상태를 갱신한다."""
     try:
-        run_id = await func(email_to=[], **kwargs)
+        if pipeline_id not in _USE_DEFAULT_EMAIL:
+            kwargs.setdefault("email_to", [])
+        run_id = await func(**kwargs)
         _run_state[pipeline_id].update(status="done", run_id=run_id)
     except Exception as e:
         logger.exception("Pipeline %s failed", pipeline_id)
@@ -145,27 +159,38 @@ async def pipelines_page(request: Request, db: AsyncSession = Depends(get_db)):
     for runs in today_runs.values():
         runs.reverse()  # 시간순 정렬
 
-    # 오늘 블로그 발행 여부 (Briefing.blog_url 유무)
+    # 최근 7일 블로그 발행 내역
+    week_ago = today_kst - timedelta(days=7)
     briefing_result = await db.execute(
-        select(Briefing.id, Briefing.briefing_type, Briefing.title, Briefing.blog_url)
-        .where(Briefing.date == today_kst)
-        .order_by(Briefing.created_at.asc())
+        select(Briefing.id, Briefing.briefing_type, Briefing.title, Briefing.blog_url, Briefing.date)
+        .where(Briefing.date >= week_ago, Briefing.blog_url != "", Briefing.blog_url.isnot(None))
+        .order_by(Briefing.date.desc(), Briefing.created_at.asc())
     )
+
+    # 오늘 발행 (기존 호환)
     published: dict[str, list[dict]] = {}
+    # 최근 발행 (오늘 제외, 날짜별)
+    recent_published: dict[str, list[dict]] = {}
     for b in briefing_result.all():
         for pid, btype in BRIEFING_TYPE_MAP.items():
             if b.briefing_type == btype and b.blog_url:
-                published.setdefault(pid, []).append({
+                entry = {
                     "id": b.id,
                     "title": b.title,
                     "blog_url": b.blog_url,
-                })
+                    "date": b.date.strftime("%m/%d"),
+                }
+                if b.date == today_kst:
+                    published.setdefault(pid, []).append(entry)
+                else:
+                    recent_published.setdefault(pid, []).append(entry)
 
     return templates.TemplateResponse("pipelines.html", {
         "request": request,
         "pipelines": PIPELINES,
         "today_runs": today_runs,
         "published": published,
+        "recent_published": recent_published,
     })
 
 

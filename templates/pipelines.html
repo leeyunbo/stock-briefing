@@ -368,6 +368,24 @@
             cursor: pointer;
         }
 
+        /* Recent published */
+        .recent-details { margin-top: 8px; }
+        .recent-summary {
+            font-size: 12px;
+            color: #8b95a1;
+            font-weight: 500;
+            cursor: pointer;
+            user-select: none;
+        }
+        .recent-summary:hover { color: #3182f6; }
+        .recent-date {
+            font-size: 12px;
+            color: #8b95a1;
+            font-weight: 600;
+            flex-shrink: 0;
+            min-width: 40px;
+        }
+
         /* Animation */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(6px); }
@@ -390,7 +408,10 @@
                 <h1>Pipelines</h1>
                 <div class="subtitle">파이프라인 수동 실행</div>
             </div>
-            <a class="back-link" href="/traces">Traces →</a>
+            <div style="display:flex;gap:16px;">
+                <a class="back-link" href="/crypto">Crypto →</a>
+                <a class="back-link" href="/traces">Traces →</a>
+            </div>
         </div>
 
         {% for p in pipelines %}
@@ -439,6 +460,20 @@
                     {% endif %}
                     {% else %}
                     <div class="today-none">오늘 미실행</div>
+                    {% endif %}
+                    {% if recent_published.get(p.id) %}
+                    <details class="recent-details">
+                        <summary class="recent-summary">최근 7일 발행 ({{ recent_published[p.id]|length }}건)</summary>
+                        <div class="publish-list" style="margin-top:6px;">
+                            {% for pub in recent_published[p.id] %}
+                            <div class="publish-item">
+                                <span class="recent-date">{{ pub.date }}</span>
+                                <a class="publish-link" href="{{ pub.blog_url }}" target="_blank">{{ pub.title }}</a>
+                                <button class="teaser-btn" onclick="copyTeaser(this, '{{ p.id }}', {{ pub.id }})">📋 티저 복사</button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </details>
                     {% endif %}
                 </div>
                 <button class="run-btn" id="btn-{{ p.id }}" onclick="runPipeline('{{ p.id }}')">

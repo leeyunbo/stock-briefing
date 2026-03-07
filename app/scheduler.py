@@ -9,6 +9,8 @@ from app.pipeline.research import run_news_dive_pipeline
 from app.pipeline.issue_dive import run_issue_dive_pipeline
 from app.pipeline.digest import run_daily_digest
 from app.pipeline.stock_deep_dive import run_stock_deep_dive_pipeline
+from app.pipeline.portfolio import run_portfolio_pipeline
+from app.pipeline.crypto_trading import run_trading_pipeline, run_ai_strategy_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +87,16 @@ def start_scheduler():
         kwargs={"email_to": []},
     )
 
+    # AI 포트폴리오: 화~토 오전 8:30 (나스닥 브리핑 08:00 후)
+    scheduler.add_job(
+        run_portfolio_pipeline,
+        trigger="cron",
+        hour=8,
+        minute=30,
+        day_of_week="tue-sat",
+        id="portfolio",
+    )
+
     # 데일리 다이제스트: 매일 밤 22시 — 오늘 발행된 글 목록 1통
     scheduler.add_job(
         run_daily_digest,
@@ -94,6 +106,22 @@ def start_scheduler():
         id="daily_digest",
     )
 
+    # 코인 트레이딩 (규칙 기반): 매 15분
+    scheduler.add_job(
+        run_trading_pipeline,
+        trigger="interval",
+        minutes=15,
+        id="crypto_trading",
+    )
+
+    # 코인 AI 전략: 매 1시간
+    scheduler.add_job(
+        run_ai_strategy_pipeline,
+        trigger="interval",
+        minutes=60,
+        id="crypto_ai_strategy",
+    )
+
     scheduler.start()
-    logger.info("스케줄러 시작: 한국 월~금 20시, 나스닥 화~토 8시, 뉴스딥다이브 매일 9시, 이슈딥다이브 매일 10/15/21시, 종목딥다이브 매일 11시, 부동산 월 7시, 다이제스트 매일 22시")
+    logger.info("스케줄러 시작: 한국 월~금 20시, 나스닥 화~토 8시, 포트폴리오 화~토 8:30, 뉴스딥다이브 매일 9시, 이슈딥다이브 매일 10/15/21시, 종목딥다이브 매일 11시, 부동산 월 7시, 다이제스트 매일 22시, 코인트레이딩 15분, 코인AI전략 1시간")
     return scheduler
