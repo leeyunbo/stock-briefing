@@ -76,9 +76,13 @@ async def resolve_kr_ticker(name_or_code: str) -> str:
         if not items:
             logger.warning("종목 검색 결과 없음: %s", name_or_code)
             return name_or_code
-        # items[0] = [코드, 종목명, 시장, ...]
         first = items[0]
-        if isinstance(first, list) and len(first) >= 1:
+        if isinstance(first, dict):
+            code = first.get("code", "")
+            if code:
+                logger.info("종목 검색: %s → %s (%s)", name_or_code, code, first.get("name", ""))
+                return code
+        elif isinstance(first, list) and len(first) >= 1:
             return first[0]
         return name_or_code
     except (httpx.HTTPStatusError, httpx.RequestError) as e:
@@ -137,29 +141,41 @@ async def fetch_kr_stock_research(ticker: str) -> KRStockResearchData:
 
 
 async def _fetch_basic(code: str) -> KRCompanyProfile | None:
-    """기업 기본 정보를 조회한다."""
+    """기업 기본 정보를 조회한다 (basic + integration 병합)."""
     client = get_http_client()
     try:
-        resp = await client.get(
-            f"{NAVER_STOCK_API}/stock/{code}/basic",
-            headers=HEADERS,
+        basic_resp, integ_resp = await asyncio.gather(
+            client.get(f"{NAVER_STOCK_API}/stock/{code}/basic", headers=HEADERS),
+            client.get(f"{NAVER_STOCK_API}/stock/{code}/integration", headers=HEADERS),
         )
-        resp.raise_for_status()
-        d = resp.json()
+        basic_resp.raise_for_status()
+        integ_resp.raise_for_status()
 
-        # 시가총액: "1,234,567억 원" 형태 → 정수 변환
-        market_cap_raw = d.get("marketCap", "0")
-        market_cap = _parse_int(market_cap_raw)
+        basic = basic_resp.json()
+        integ = integ_resp.json()
+
+        # integration의 totalInfos를 dict로 변환
+        info = {}
+        for item in integ.get("totalInfos", []):
+            key = item.get("code", "")
+            if key:
+                info[key] = item.get("value", "")
 
         return KRCompanyProfile(
-            name=d.get("stockName", ""),
+            name=basic.get("stockName", ""),
             code=code,
-            market=d.get("stockExchangeType", {}).get("name", ""),
-            industry=d.get("industryCodeType", {}).get("name", ""),
-            market_cap=market_cap,
-            per=_safe_float(d.get("per")),
-            pbr=_safe_float(d.get("pbr")),
-            dividend_yield=_safe_float(d.get("dividendYield")),
+            market=basic.get("stockExchangeType", {}).get("name", ""),
+            industry=integ.get("industryCode", {}).get("industryGroupName", "")
+                     if isinstance(integ.get("industryCode"), dict) else "",
+            market_cap=_parse_market_cap(info.get("marketValue", "0")),
+            per=_safe_float(info.get("per", "").replace("배", "")),
+            pbr=_safe_float(info.get("pbr", "").replace("배", "")),
+            dividend_yield=_safe_float(info.get("dividendYieldRatio", "").replace("%", "")),
+            eps=_safe_float(info.get("eps", "").replace("원", "")),
+            bps=_safe_float(info.get("bps", "").replace("원", "")),
+            week52_high=_safe_float(info.get("highPriceOf52Weeks", "").replace(",", "")),
+            week52_low=_safe_float(info.get("lowPriceOf52Weeks", "").replace(",", "")),
+            foreign_rate=_safe_float(info.get("foreignRate", "").replace("%", "")),
         )
     except (httpx.HTTPStatusError, httpx.RequestError) as e:
         logger.warning("KR 기본정보 에러 (%s): %s", code, e)
@@ -193,9 +209,24 @@ async def _fetch_quote(code: str) -> KRQuoteData | None:
 
 
 async def _fetch_finance(code: str) -> list[KRFinancialRow]:
-    """재무제표를 조회한다 (연간 + 분기)."""
+    """재무제표를 조회한다 (연간 + 분기).
+
+    네이버 응답 형식:
+    financeInfo.trTitleList: [{"key": "202312", "title": "2023.12."}, ...]
+    financeInfo.rowList: [{"title": "매출액", "columns": {"202312": {"value": "2,589,355"}, ...}}, ...]
+    """
     rows: list[KRFinancialRow] = []
     client = get_http_client()
+
+    # 지표명 → 필드 매핑
+    field_map = {
+        "매출액": "revenue",
+        "영업이익": "operating_income",
+        "당기순이익": "net_income",
+        "EPS": "eps",
+        "ROE": "roe",
+        "부채비율": "debt_ratio",
+    }
 
     for period_type, freq in [("annual", "annual"), ("quarterly", "quarter")]:
         try:
@@ -205,20 +236,41 @@ async def _fetch_finance(code: str) -> list[KRFinancialRow]:
             )
             resp.raise_for_status()
             data = resp.json()
+            fi = data.get("financeInfo", {})
+            if not isinstance(fi, dict):
+                continue
 
-            # 네이버 재무제표 응답 구조: { "financeInfo": [...] } 또는 직접 리스트
-            finance_items = data if isinstance(data, list) else data.get("financeInfo", [])
+            periods = [t.get("key", "") for t in fi.get("trTitleList", [])]
+            period_labels = {t.get("key", ""): t.get("title", "") for t in fi.get("trTitleList", [])}
+            row_list = fi.get("rowList", [])
 
-            for item in finance_items:
+            # 기간별로 데이터를 모은다
+            period_data: dict[str, dict] = {p: {"period": period_labels.get(p, p), "period_type": period_type} for p in periods}
+
+            for row in row_list:
+                title = row.get("title", "")
+                field = field_map.get(title)
+                if not field:
+                    continue
+                columns = row.get("columns", {})
+                if not isinstance(columns, dict):
+                    continue
+                for period_key, col in columns.items():
+                    if period_key in period_data and isinstance(col, dict):
+                        val = col.get("value", "")
+                        period_data[period_key][field] = _safe_float(val)
+
+            for period_key in periods:
+                d = period_data[period_key]
                 rows.append(KRFinancialRow(
-                    period=item.get("date", item.get("period", "")),
+                    period=d.get("period", ""),
                     period_type=period_type,
-                    revenue=_safe_float(item.get("revenue", item.get("salesAmount"))),
-                    operating_income=_safe_float(item.get("operatingProfit", item.get("operatingIncome"))),
-                    net_income=_safe_float(item.get("netIncome")),
-                    eps=_safe_float(item.get("eps")),
-                    roe=_safe_float(item.get("roe")),
-                    debt_ratio=_safe_float(item.get("debtRatio")),
+                    revenue=d.get("revenue"),
+                    operating_income=d.get("operating_income"),
+                    net_income=d.get("net_income"),
+                    eps=d.get("eps"),
+                    roe=d.get("roe"),
+                    debt_ratio=d.get("debt_ratio"),
                 ))
         except (httpx.HTTPStatusError, httpx.RequestError) as e:
             logger.warning("KR 재무제표 에러 (%s, %s): %s", code, freq, e)
@@ -280,6 +332,23 @@ def _parse_int(value) -> int:
         return int(float(s))
     except (ValueError, TypeError):
         return 0
+
+
+def _parse_market_cap(value: str) -> int:
+    """시총 문자열을 억 단위 정수로 변환한다. 예: '1,114조 759억' → 11140759."""
+    if not value:
+        return 0
+    value = value.replace(",", "").replace(" ", "")
+    total = 0
+    # 조 단위
+    m = re.search(r"(\d+)조", value)
+    if m:
+        total += int(m.group(1)) * 10000  # 1조 = 10000억
+    # 억 단위
+    m = re.search(r"(\d+)억", value)
+    if m:
+        total += int(m.group(1))
+    return total if total > 0 else _parse_int(value)
 
 
 def _safe_float(value) -> float | None:

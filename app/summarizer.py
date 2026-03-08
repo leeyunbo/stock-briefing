@@ -329,12 +329,26 @@ def _build_closed_market_briefing(news: list[NewsArticle], run_id: str = "") -> 
 
 
 def strip_code_block(text: str) -> str:
-    """AI 응답에서 ```html ... ``` 코드블록 마커를 제거한다."""
+    """AI 응답에서 ```html ... ``` 코드블록 마커와 HTML 이후 메타 텍스트를 제거한다."""
     text = text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1] if "\n" in text else text[3:]
     if text.endswith("```"):
         text = text[:-3]
+    text = text.strip()
+
+    # HTML 마지막 닫는 태그 이후의 비-HTML 텍스트 제거
+    # (Claude CLI가 "기사 작성이 완료되었습니다..." 같은 메타 텍스트를 붙이는 경우)
+    import re
+    last_tag = None
+    for m in re.finditer(r'</\w+>', text):
+        last_tag = m
+    if last_tag:
+        after = text[last_tag.end():].strip()
+        # 마지막 태그 이후에 HTML이 아닌 텍스트가 있으면 제거
+        if after and not after.startswith("<") and "<!-- SEO -->" not in after:
+            text = text[:last_tag.end()]
+
     return text.strip()
 
 

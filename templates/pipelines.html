@@ -453,7 +453,8 @@
                         {% for pub in published[p.id] %}
                         <div class="publish-item">
                             <a class="publish-link" href="{{ pub.blog_url }}" target="_blank">{{ pub.title }}</a>
-                            <button class="teaser-btn" onclick="copyTeaser(this, '{{ p.id }}', {{ pub.id }})">📋 티저 복사</button>
+                            <button class="teaser-btn" onclick="copyTeaser(this, '{{ p.id }}', {{ pub.id }})">📋 티저</button>
+                            <button class="teaser-btn" onclick="copyTagsFor(this, '{{ p.id }}', {{ pub.id }})">#태그</button>
                         </div>
                         {% endfor %}
                     </div>
@@ -469,7 +470,8 @@
                             <div class="publish-item">
                                 <span class="recent-date">{{ pub.date }}</span>
                                 <a class="publish-link" href="{{ pub.blog_url }}" target="_blank">{{ pub.title }}</a>
-                                <button class="teaser-btn" onclick="copyTeaser(this, '{{ p.id }}', {{ pub.id }})">📋 티저 복사</button>
+                                <button class="teaser-btn" onclick="copyTeaser(this, '{{ p.id }}', {{ pub.id }})">📋 티저</button>
+                            <button class="teaser-btn" onclick="copyTagsFor(this, '{{ p.id }}', {{ pub.id }})">#태그</button>
                             </div>
                             {% endfor %}
                         </div>
@@ -604,12 +606,18 @@
         }
 
         // ── 티저 복사 ──────────────────────────────────────────
-        function showToast(msg) {
+        function showToast(msg, showTagBtn = false) {
             const t = document.getElementById('toast');
-            t.textContent = msg;
+            if (showTagBtn) {
+                t.innerHTML = msg + ' <button onclick="copyTags()" style="margin-left:8px;padding:4px 12px;border:1px solid rgba(255,255,255,0.4);border-radius:6px;background:transparent;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">태그 복사</button>';
+            } else {
+                t.textContent = msg;
+            }
             t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 2000);
+            setTimeout(() => t.classList.remove('show'), showTagBtn ? 5000 : 2000);
         }
+
+        let lastTeaserTags = [];
 
         async function copyTeaser(btn, id, briefingId) {
             const origText = btn.textContent;
@@ -619,25 +627,65 @@
                 let url = '/pipelines/' + id + '/teaser';
                 if (briefingId) url += '?briefing_id=' + briefingId;
 
-                // ClipboardItem에 promise를 넘겨서 사용자 제스처 권한 유지
-                const htmlPromise = fetch(url)
-                    .then(r => {
-                        if (!r.ok) return r.json().then(e => { throw new Error(e.error || '실패'); });
-                        return r.json();
-                    })
-                    .then(data => {
-                        btn.disabled = false;
-                        btn.textContent = origText;
-                        return new Blob([data.teaser_html], { type: 'text/html' });
-                    });
+                const resp = await fetch(url);
+                if (!resp.ok) {
+                    const e = await resp.json();
+                    throw new Error(e.error || '실패');
+                }
+                const data = await resp.json();
+                btn.disabled = false;
+                btn.textContent = origText;
 
+                // 티저 HTML 복사
+                const htmlBlob = new Blob([data.teaser_html], { type: 'text/html' });
+                const textBlob = new Blob([data.teaser_html], { type: 'text/plain' });
                 await navigator.clipboard.write([
-                    new ClipboardItem({ 'text/html': htmlPromise })
+                    new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob })
                 ]);
-                showToast('클립보드에 복사되었습니다!');
+
+                // 태그가 있으면 태그 복사 버튼 표시
+                lastTeaserTags = data.tags || [];
+                if (lastTeaserTags.length > 0) {
+                    const tagText = lastTeaserTags.join(', ');
+                    showToast('티저 복사 완료! 태그: ' + tagText, true);
+                } else {
+                    showToast('클립보드에 복사되었습니다!');
+                }
             } catch (e) {
                 console.error(e);
                 showToast('복사 실패: ' + e.message);
+                btn.disabled = false;
+                btn.textContent = origText;
+            }
+        }
+
+        async function copyTags() {
+            if (!lastTeaserTags.length) return;
+            const tagText = lastTeaserTags.join('\n');
+            await navigator.clipboard.writeText(tagText);
+            showToast('태그 복사 완료! (' + lastTeaserTags.length + '개)');
+        }
+
+        async function copyTagsFor(btn, id, briefingId) {
+            const origText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '…';
+            try {
+                let url = '/pipelines/' + id + '/tags';
+                if (briefingId) url += '?briefing_id=' + briefingId;
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error('태그 없음');
+                const data = await resp.json();
+                const tags = data.tags || [];
+                if (!tags.length) {
+                    showToast('태그가 없습니다');
+                    return;
+                }
+                await navigator.clipboard.writeText(tags.join('\n'));
+                showToast('태그 복사 완료! (' + tags.length + '개)');
+            } catch (e) {
+                showToast('태그 복사 실패: ' + e.message);
+            } finally {
                 btn.disabled = false;
                 btn.textContent = origText;
             }

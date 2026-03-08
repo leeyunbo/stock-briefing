@@ -14,7 +14,7 @@ import pytest
 
 import chromadb
 
-from app.collector.dedup import NewsDedup, CHROMA_DIR
+from app.collector.dedup import NewsDedup, CHROMA_DIR, _cosine_sim
 
 
 @dataclass(frozen=True)
@@ -29,10 +29,15 @@ def dedup(tmp_path):
     with patch("app.collector.dedup.CHROMA_DIR", tmp_path):
         d = NewsDedup.__new__(NewsDedup)
         d._client = chromadb.PersistentClient(path=str(tmp_path))
+        # 기본 임베딩 함수 (all-MiniLM-L6-v2)
+        default_ef = chromadb.utils.embedding_functions.DefaultEmbeddingFunction()
+        d._embed_fn = default_ef
         d._collection = d._client.get_or_create_collection(
             name="test_news",
+            embedding_function=default_ef,
             metadata={"hnsw:space": "cosine"},
         )
+        d.last_filtered = []
         yield d
 
 
@@ -108,6 +113,32 @@ class TestFilterUnseen:
         result = dedup.filter_unseen(news, _text_fn, threshold=0.92)
         assert len(result) == 1
         assert dedup._collection.count() == 0  # DB에는 추가되지 않음
+
+    def test_intra_batch_duplicates_filtered(self, dedup):
+        """같은 배치 내 유사 기사가 제거된다 (핵심 버그 수정 테스트)."""
+        news = [
+            FakeNews(
+                "Iran threatens to close Strait of Hormuz, oil prices surge",
+                "Oil prices jumped 5% as Iran threatened to block the strait"
+            ),
+            FakeNews(
+                "Oil prices spike on Hormuz Strait closure threat by Iran",
+                "Crude oil surged after Iran announced potential Hormuz blockade"
+            ),
+            FakeNews(
+                "Tesla announces new Model Y refresh",
+                "Tesla reveals redesigned Model Y with improved range"
+            ),
+        ]
+        result = dedup.filter_unseen(news, _text_fn, threshold=0.85)
+        # 호르무즈 기사 2개 중 1개만, 테슬라 기사 1개 → 총 2개
+        assert len(result) == 2
+        titles = [n.title for n in result]
+        # 테슬라 기사는 반드시 포함
+        assert any("Tesla" in t for t in titles)
+        # 호르무즈 기사는 1개만 (중복이 제거됨)
+        hormuz_count = sum(1 for t in titles if "Hormuz" in t or "oil" in t.lower())
+        assert hormuz_count == 1
 
 
 class TestCleanup:

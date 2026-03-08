@@ -15,6 +15,11 @@ class KRCompanyProfile(BaseModel):
     per: float | None = None
     pbr: float | None = None
     dividend_yield: float | None = None
+    eps: float | None = None
+    bps: float | None = None
+    week52_high: float | None = None
+    week52_low: float | None = None
+    foreign_rate: float | None = None  # 외인소진율 %
 
 
 class KRQuoteData(BaseModel):

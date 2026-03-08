@@ -113,10 +113,15 @@ async def collect_stock_data(ctx: StockDeepDiveContext) -> None:
 
     if market == "KR":
         kr_data = await fetch_kr_stock_research(ticker)
+        if kr_data.quote.current == 0:
+            raise RuntimeError(f"KR 종목 시세 데이터 수집 실패: {ticker} — 파이프라인 중단")
         ctx["kr_data"] = kr_data
-        logger.info("[종목딥다이브 Stage 3] KR 수집 완료: %s", kr_data.profile.name)
+        logger.info("[종목딥다이브 Stage 3] KR 수집 완료: %s (현재가: %s원)",
+                    kr_data.profile.name, f"{kr_data.quote.current:,}")
     else:
         us_data = await fetch_stock_research(ticker)
+        if us_data.profile.name == "" and us_data.quote.current == 0:
+            raise RuntimeError(f"US 종목 데이터 수집 실패: {ticker} — 파이프라인 중단")
         ctx["us_data"] = us_data
         logger.info("[종목딥다이브 Stage 3] US 수집 완료: %s", us_data.profile.name)
 

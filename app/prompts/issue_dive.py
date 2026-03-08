@@ -35,10 +35,10 @@ PICK_ISSUE_PROMPT = """당신은 글로벌 매크로 전략가이자 시니어 �
 중요:
 - 경제 이벤트의 날짜를 추측하지 마세요. 데이터에 명시된 일정만 언급하세요.
 - 반드시 **1개의 이슈만** 선정하세요.
-- 아래 "이미 다룬 주제"를 확인하세요.
-  - 같은 주제를 같은 각도로 반복하지 마세요.
-  - 단, 상황이 급변한 경우(정책 전환, 전쟁 종료/확대, 급락→급등 반전 등)는 새로운 이슈로 선정해도 됩니다.
-  - 후속 보도라도 새로운 팩트나 전개가 없으면 선정하지 마세요.
+- **주제 반복 금지 규칙** (반드시 준수):
+  - 아래 "이미 다룬 주제" 목록에 나온 종목/이슈와 같은 주제를 선정하면 안 됩니다.
+  - "다른 각도", "후속 보도", "상황 변화" 등 어떤 이유로든 같은 종목/이슈를 다시 다루지 마세요.
+  - 예: "마벨 실적"을 이미 다뤘으면 "마벨 폭등 이유"도 금지입니다. 완전히 다른 주제를 선택하세요.
 
 반드시 아래 JSON 형식으로만 응답하세요:
 {{
@@ -115,16 +115,46 @@ def _fetch_recent_issue_titles(days: int = 7) -> list[str]:
         return []
 
 
+def _extract_banned_keywords(titles: list[str]) -> list[str]:
+    """제목 목록에서 반복 등장하는 핵심 키워드를 추출한다."""
+    import re as _re
+    from collections import Counter
+
+    # 불용어
+    stopwords = {
+        "이슈", "딥다이브", "분석", "시나리오", "시그널", "경고", "의미", "배경",
+        "핵심", "급등", "급락", "폭등", "폭락", "충격", "위기", "비밀", "신호",
+        "오늘", "내일", "시장", "종목", "동반", "하락", "상승", "반등", "돌파",
+        "가지", "가격", "전망", "영향", "대비", "속보", "최고가", "사상",
+    }
+
+    words = Counter()
+    for title in titles:
+        # 한글 2글자 이상 단어 + 영문 단어 추출
+        tokens = _re.findall(r'[가-힣]{2,}|[A-Z]{2,}', title)
+        for t in tokens:
+            if t not in stopwords and len(t) >= 2:
+                words[t] += 1
+
+    # 2회 이상 등장한 키워드 반환
+    return [w for w, c in words.most_common(15) if c >= 2]
+
+
 def pick_top_issue(scan: MarketScanData, macro: MacroIndicators, run_id: str = "") -> dict:
     """LLM #1: 전체 뉴스에서 가장 중요한 이슈 1개를 선정한다."""
     prompt = _build_pick_issue_prompt(scan, macro)
 
-    # 이미 다룬 주제 추가
+    # 이미 다룬 주제 추가 — 제목 + 금지 키워드 명시
     recent_titles = _fetch_recent_issue_titles()
     if recent_titles:
-        prompt += "\n\n## 이미 다룬 주제 (절대 다시 선정 금지!)\n"
+        prompt += "\n\n## ⛔ 이미 다룬 주제 (아래 종목/이슈는 절대 선정 금지)\n"
         for t in recent_titles:
             prompt += f"- {t}\n"
+        # 제목에서 핵심 키워드 추출하여 명시
+        banned = _extract_banned_keywords(recent_titles)
+        if banned:
+            prompt += f"\n금지 키워드: {', '.join(banned)}\n"
+            prompt += "위 키워드가 포함된 이슈는 선정하지 마세요.\n"
 
     system_prompt = PICK_ISSUE_PROMPT.replace("{today}", date.today().isoformat())
     provider = get_cli_provider(timeout=120, pipeline="issue_dive", stage="pick_issue", run_id=run_id)

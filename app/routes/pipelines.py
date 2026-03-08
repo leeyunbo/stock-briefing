@@ -383,7 +383,41 @@ async def teaser(pipeline_id: str, briefing_id: int = 0, db: AsyncSession = Depe
         teaser_html = teaser_html.rsplit("```", 1)[0]
     teaser_html = teaser_html.strip()
 
-    return {"teaser_html": teaser_html, "blog_url": briefing.blog_url}
+    # 태그 추출 (네이버 블로그용)
+    tags = [t.strip() for t in (briefing.tags or "").split(",") if t.strip()]
+    # focus_keyword를 태그 맨 앞에
+    if briefing.focus_keyword and briefing.focus_keyword not in tags:
+        tags.insert(0, briefing.focus_keyword)
+
+    return {"teaser_html": teaser_html, "blog_url": briefing.blog_url, "tags": tags}
+
+
+@router.get("/{pipeline_id}/tags")
+async def get_tags(pipeline_id: str, briefing_id: int = 0, db: AsyncSession = Depends(get_db)):
+    """브리핑의 태그를 반환한다."""
+    briefing_type = BRIEFING_TYPE_MAP.get(pipeline_id)
+    if not briefing_type:
+        return JSONResponse({"error": "Unknown pipeline"}, status_code=404)
+
+    if briefing_id:
+        result = await db.execute(select(Briefing).where(Briefing.id == briefing_id))
+    else:
+        today_kst = datetime.now(KST).date()
+        result = await db.execute(
+            select(Briefing)
+            .where(Briefing.date == today_kst, Briefing.briefing_type == briefing_type)
+            .order_by(Briefing.created_at.desc())
+            .limit(1)
+        )
+    briefing = result.scalar_one_or_none()
+    if not briefing:
+        return JSONResponse({"error": "브리핑 없음"}, status_code=404)
+
+    tags = [t.strip() for t in (briefing.tags or "").split(",") if t.strip()]
+    if briefing.focus_keyword and briefing.focus_keyword not in tags:
+        tags.insert(0, briefing.focus_keyword)
+
+    return {"tags": tags}
 
 
 @router.get("/status")

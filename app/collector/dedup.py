@@ -25,6 +25,16 @@ T = TypeVar("T")
 CHROMA_DIR = Path(__file__).resolve().parents[2] / "data" / "chroma"
 
 
+def _cosine_sim(a: list[float], b: list[float]) -> float:
+    """두 벡터의 코사인 유사도 계산."""
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = sum(x * x for x in a) ** 0.5
+    norm_b = sum(x * x for x in b) ** 0.5
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
 class GeminiEmbeddingFunction(EmbeddingFunction[Documents]):
     """Gemini gemini-embedding-001을 ChromaDB 임베딩 함수로 래핑."""
 
@@ -43,13 +53,34 @@ class NewsDedup:
     """ChromaDB + Gemini 임베딩으로 뉴스 시맨틱 중복 제거."""
 
     def __init__(self, collection_name: str = "seen_news"):
+        self._embed_fn = GeminiEmbeddingFunction()
         self._client = chromadb.PersistentClient(path=str(CHROMA_DIR))
         self._collection = self._client.get_or_create_collection(
             name=collection_name,
-            embedding_function=GeminiEmbeddingFunction(),
+            embedding_function=self._embed_fn,
             metadata={"hnsw:space": "cosine"},
         )
         self.last_filtered: list[str] = []  # 마지막 filter_unseen에서 제거된 텍스트
+
+    def _safe_query(self, query_texts: list[str], n_results: int = 1) -> dict | None:
+        """ChromaDB 쿼리. HNSW 인덱스 깨진 경우 컬렉션 재생성."""
+        try:
+            return self._collection.query(
+                query_texts=query_texts,
+                n_results=n_results,
+            )
+        except chromadb.errors.InternalError as e:
+            if "Nothing found on disk" in str(e):
+                logger.warning("ChromaDB HNSW 인덱스 깨짐 — 컬렉션 재생성: %s", e)
+                name = self._collection.name
+                self._client.delete_collection(name)
+                self._collection = self._client.get_or_create_collection(
+                    name=name,
+                    embedding_function=self._embed_fn,
+                    metadata={"hnsw:space": "cosine"},
+                )
+                return None
+            raise
 
     def filter_unseen(
         self,
@@ -60,8 +91,8 @@ class NewsDedup:
         """중복이 아닌 항목만 반환.
 
         1. 각 항목에서 text_fn으로 텍스트 추출
-        2. ChromaDB query로 유사 기사 검색
-        3. 유사도 >= threshold인 항목은 중복으로 판정
+        2. ChromaDB query로 기존 기사와 유사도 검색 (기간 간 중복 제거)
+        3. 배치 내 유사 기사 제거 (같은 실행 내 중복 제거)
         4. 통과한 항목을 ChromaDB에 추가 (다음 실행 대비)
 
         Args:
@@ -78,61 +109,82 @@ class NewsDedup:
         if threshold is None:
             threshold = get_settings().news_dedup_threshold
 
-        # cosine distance threshold: similarity 0.92 → distance 0.08
         distance_threshold = 1.0 - threshold
-
-        texts = [text_fn(item) for item in items]
-        unseen: list[T] = []
-        unseen_texts: list[str] = []
-        unseen_ids: list[str] = []
         self.last_filtered = []
 
-        # 빈 텍스트 분리
-        non_empty_items: list[tuple[T, str]] = []
-        for item, text in zip(items, texts):
+        # 빈 텍스트 분리 (항상 통과, DB에 저장 안 함)
+        empty_items: list[T] = []
+        candidates: list[tuple[T, str]] = []
+        for item, text in zip(items, [text_fn(i) for i in items]):
             if not text.strip():
-                unseen.append(item)
+                empty_items.append(item)
             else:
-                non_empty_items.append((item, text))
+                candidates.append((item, text))
 
-        if not non_empty_items:
-            return unseen
+        if not candidates:
+            return empty_items
 
-        # 컬렉션이 비어있으면 전체 통과
+        candidate_texts = [text for _, text in candidates]
+
+        # Phase 1: 기존 DB와 비교 (기간 간 중복 제거)
         if self._collection.count() == 0:
-            for item, text in non_empty_items:
-                unseen.append(item)
-                unseen_texts.append(text)
-                unseen_ids.append(uuid.uuid4().hex)
+            passing_indices = list(range(len(candidates)))
         else:
-            # 배치 쿼리 — O(1) 호출로 전체 유사도 검색
-            query_texts = [text for _, text in non_empty_items]
-            results = self._collection.query(
-                query_texts=query_texts,
-                n_results=1,
-            )
-            all_distances = results.get("distances", [])
+            results = self._safe_query(candidate_texts)
+            if results is None:
+                # DB 깨져서 재생성됨 — 전체 통과
+                passing_indices = list(range(len(candidates)))
+            else:
+                all_distances = results.get("distances", [])
+                passing_indices = []
+                for i, (item, text) in enumerate(candidates):
+                    distances = all_distances[i] if i < len(all_distances) else []
+                    if distances and distances[0] < distance_threshold:
+                        logger.info("중복 뉴스 필터링 (distance=%.4f): %s", distances[0], text[:80])
+                        self.last_filtered.append(text[:100])
+                    else:
+                        passing_indices.append(i)
 
-            for i, (item, text) in enumerate(non_empty_items):
-                distances = all_distances[i] if i < len(all_distances) else []
-                if distances and distances[0] < distance_threshold:
-                    logger.info("중복 뉴스 필터링 (distance=%.4f): %s", distances[0], text[:80])
-                    self.last_filtered.append(text[:100])
-                    continue
-                unseen.append(item)
-                unseen_texts.append(text)
-                unseen_ids.append(uuid.uuid4().hex)
+        # Phase 2: 배치 내 중복 제거 (같은 실행 내 유사 기사 제거)
+        if len(passing_indices) > 1:
+            try:
+                passing_texts = [candidate_texts[i] for i in passing_indices]
+                embeddings = self._embed_fn(passing_texts)
 
-        # 통과한 항목을 DB에 추가
-        if unseen_texts:
+                final_passing: list[int] = []
+                for idx, i in enumerate(passing_indices):
+                    is_dup = False
+                    for kept_idx in final_passing:
+                        kept_embed_pos = passing_indices.index(kept_idx)
+                        sim = _cosine_sim(embeddings[idx], embeddings[kept_embed_pos])
+                        if sim >= threshold:
+                            is_dup = True
+                            logger.info(
+                                "배치 내 중복 필터링 (sim=%.4f): %s",
+                                sim, candidate_texts[i][:80],
+                            )
+                            self.last_filtered.append(candidate_texts[i][:100])
+                            break
+                    if not is_dup:
+                        final_passing.append(i)
+                passing_indices = final_passing
+            except Exception:
+                logger.warning("배치 내 중복 제거 실패, 스킵", exc_info=True)
+
+        # Phase 3: 통과 항목을 DB에 추가
+        if passing_indices:
             now = datetime.now().isoformat()
             self._collection.add(
-                ids=unseen_ids,
-                documents=unseen_texts,
-                metadatas=[{"added_at": now} for _ in unseen_ids],
+                ids=[uuid.uuid4().hex for _ in passing_indices],
+                documents=[candidate_texts[i] for i in passing_indices],
+                metadatas=[{"added_at": now} for _ in passing_indices],
             )
-            logger.info("ChromaDB에 %d건 추가 (총 %d건)", len(unseen_texts), self._collection.count())
+            logger.info(
+                "ChromaDB에 %d건 추가 (총 %d건)",
+                len(passing_indices), self._collection.count(),
+            )
 
+        unseen = empty_items + [candidates[i][0] for i in passing_indices]
         logger.info("뉴스 중복 제거: %d → %d건", len(items), len(unseen))
         return unseen
 

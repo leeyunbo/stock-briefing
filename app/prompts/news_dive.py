@@ -54,6 +54,7 @@ NEWS_ANALYSIS_PROMPT = """당신은 글로벌 매크로 전략가이자 경제 �
 - 시장을 실제로 움직인 뉴스 (등락 TOP과 연결)
 - 정책 변화, 실적 서프라이즈, 산업 구조 변화
 - "왜 이런 일이 일어나고 있는지" 설명할 수 있는 이슈
+- **주제 반복 금지**: 아래 "이미 다룬 주제"에 나온 종목/이슈는 어떤 각도로든 다시 선정하지 마세요. 완전히 다른 이슈를 선택하세요.
 
 종목 분석 기준:
 - affected_tickers: 이 이슈로 직접 영향받는 종목 (상승이든 하락이든)
@@ -127,9 +128,44 @@ def _build_news_analysis_prompt(scan: MarketScanData, macro: MacroIndicators) ->
     return "\n".join(parts)
 
 
+def _fetch_recent_news_dive_titles(days: int = 7) -> list[str]:
+    """최근 N일간 발행된 뉴스 딥다이브 제목을 DB에서 가져온다 (동기 방식)."""
+    from datetime import timedelta
+    from sqlalchemy import create_engine, select
+    from app.core.config import get_settings
+    from app.core.models import Briefing, BriefingType
+
+    try:
+        db_url = get_settings().database_url
+        sync_url = db_url.replace("sqlite+aiosqlite://", "sqlite://")
+        engine = create_engine(sync_url)
+        cutoff = date.today() - timedelta(days=days)
+        with engine.connect() as conn:
+            result = conn.execute(
+                select(Briefing.title).where(
+                    Briefing.briefing_type.in_([BriefingType.NEWS_DIVE, BriefingType.ISSUE_DIVE]),
+                    Briefing.date >= cutoff,
+                )
+            )
+            titles = [row[0] for row in result.all()]
+        engine.dispose()
+        return titles
+    except Exception as e:
+        logger.warning("최근 뉴스 제목 조회 실패: %s", e)
+        return []
+
+
 def analyze_news(scan: MarketScanData, macro: MacroIndicators, run_id: str = "") -> dict:
     """Stage 2: Claude에게 뉴스+매크로를 주고 핵심 이슈 + 관련 종목을 도출한다."""
     prompt = _build_news_analysis_prompt(scan, macro)
+
+    # 이미 다룬 주제 추가
+    recent_titles = _fetch_recent_news_dive_titles()
+    if recent_titles:
+        prompt += "\n\n## 이미 다룬 주제 (같은 각도로 반복 금지)\n"
+        for t in recent_titles:
+            prompt += f"- {t}\n"
+
     system_prompt = NEWS_ANALYSIS_PROMPT.replace("{today}", date.today().isoformat())
     provider = get_cli_provider(timeout=180, pipeline="news_dive", stage="analyze_news", run_id=run_id)
     raw = provider.call(system_prompt, prompt)
