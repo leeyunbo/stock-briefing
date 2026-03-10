@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 from enum import StrEnum
 
-from sqlalchemy import Date, Float, Integer, String, Text, DateTime, Boolean, UniqueConstraint
+from sqlalchemy import Date, Float, Integer, String, Text, DateTime, Boolean, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -17,6 +17,7 @@ class BriefingType(StrEnum):
     REAL_ESTATE = "real_estate_briefing"
     STOCK_DEEP_DIVE = "stock_deep_dive"
     PORTFOLIO = "portfolio"
+    SEO_CONTENT = "seo_content"
 
 
 class Subscriber(Base):
@@ -131,3 +132,59 @@ class PortfolioChangeLog(Base):
     new_weight_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     reason: Mapped[str] = mapped_column(Text, default="")
     run_id: Mapped[str] = mapped_column(String(36), default="")
+
+
+class SeoTopic(Base):
+    """SEO 토픽 큐 — 종목×패턴 조합."""
+
+    __tablename__ = "seo_topics"
+    __table_args__ = (
+        UniqueConstraint("pattern_type", "keyword", name="uq_seo_topic"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pattern_type: Mapped[str] = mapped_column(String(50), index=True)
+    keyword: Mapped[str] = mapped_column(String(100), index=True)
+    title_template: Mapped[str] = mapped_column(String(200))
+    focus_keyword: Mapped[str] = mapped_column(String(100), default="")
+    priority: Mapped[int] = mapped_column(Integer, default=10)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    ticker: Mapped[str] = mapped_column(String(20), default="")
+    source: Mapped[str] = mapped_column(String(20), default="template")
+    gsc_impressions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    gsc_position: Mapped[float | None] = mapped_column(Float, nullable=True)
+    briefing_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    wp_post_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class GscDailyData(Base):
+    """GSC 일별 키워드 데이터."""
+
+    __tablename__ = "gsc_daily_data"
+    __table_args__ = (
+        UniqueConstraint("date", "query", "page", name="uq_gsc_daily"),
+        Index("ix_gsc_query", "query"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    query: Mapped[str] = mapped_column(String(500))
+    page: Mapped[str] = mapped_column(String(500), default="")
+    impressions: Mapped[int] = mapped_column(Integer, default=0)
+    clicks: Mapped[int] = mapped_column(Integer, default=0)
+    position: Mapped[float] = mapped_column(Float, default=0.0)
+    ctr: Mapped[float] = mapped_column(Float, default=0.0)
+
+
+class ContentCluster(Base):
+    """콘텐츠 클러스터 추적."""
+
+    __tablename__ = "content_clusters"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cluster_name: Mapped[str] = mapped_column(String(100), unique=True)
+    pillar_post_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pillar_url: Mapped[str] = mapped_column(String(500), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))

@@ -67,6 +67,13 @@ class Settings(BaseSettings):
     upbit_trading_enabled: bool = False  # True일 때만 실제 주문 실행
     upbit_initial_capital: int = 100_000  # 초기 자본금 (원)
 
+    # Google Search Console
+    gsc_site_url: str = ""
+
+    # SEO Content
+    seo_dedup_threshold: float = 0.85
+    seo_daily_limit: int = 1
+
     # Database
     database_url: str = "sqlite+aiosqlite:///briefing.db"
 

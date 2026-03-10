@@ -21,6 +21,7 @@ from app.pipeline.real_estate import run_real_estate_pipeline
 from app.pipeline.stock_deep_dive import run_stock_deep_dive_pipeline
 from app.pipeline.chart_analysis import run_chart_analysis_pipeline
 from app.pipeline.portfolio import run_portfolio_pipeline
+from app.pipeline.seo_content import run_seo_content_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ BRIEFING_TYPE_MAP: dict[str, str] = {
     "real_estate": BriefingType.REAL_ESTATE,
     "stock_deep_dive": BriefingType.STOCK_DEEP_DIVE,
     "portfolio": BriefingType.PORTFOLIO,
+    "seo_content": BriefingType.SEO_CONTENT,
 }
 
 # ── 파이프라인 정의 ──────────────────────────────────────────
@@ -101,6 +103,13 @@ PIPELINES: list[dict[str, Any]] = [
         "description": "NASDAQ 100 기반 AI 가상 포트폴리오를 운용합니다. 일일 리뷰 + 이메일 발송.",
         "schedule": "화–토 08:30",
         "func": run_portfolio_pipeline,
+    },
+    {
+        "id": "seo_content",
+        "name": "SEO 콘텐츠",
+        "description": "토픽 큐에서 1건 선택하여 SEO 최적화 글을 자동 생성합니다.",
+        "schedule": "매일 14:00",
+        "func": run_seo_content_pipeline,
     },
 ]
 
