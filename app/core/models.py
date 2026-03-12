@@ -18,6 +18,7 @@ class BriefingType(StrEnum):
     STOCK_DEEP_DIVE = "stock_deep_dive"
     PORTFOLIO = "portfolio"
     SEO_CONTENT = "seo_content"
+    ECONOMY_CONTENT = "economy_content"
 
 
 class Subscriber(Base):
@@ -153,6 +154,28 @@ class SeoTopic(Base):
     source: Mapped[str] = mapped_column(String(20), default="template")
     gsc_impressions: Mapped[int | None] = mapped_column(Integer, nullable=True)
     gsc_position: Mapped[float | None] = mapped_column(Float, nullable=True)
+    briefing_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    wp_post_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class EconomyTopic(Base):
+    """경제 상식 토픽 큐 — 부동산/경제/투자 개념 설명 콘텐츠."""
+
+    __tablename__ = "economy_topics"
+    __table_args__ = (
+        UniqueConstraint("pattern_type", "keyword", name="uq_economy_topic"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pattern_type: Mapped[str] = mapped_column(String(50), index=True)
+    keyword: Mapped[str] = mapped_column(String(100), index=True)
+    title_template: Mapped[str] = mapped_column(String(200))
+    focus_keyword: Mapped[str] = mapped_column(String(100), default="")
+    priority: Mapped[int] = mapped_column(Integer, default=10)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    source: Mapped[str] = mapped_column(String(20), default="template")
     briefing_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     wp_post_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))

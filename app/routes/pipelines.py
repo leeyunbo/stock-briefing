@@ -15,8 +15,8 @@ from app.core.database import get_db
 from app.core.models import AiTrace, Briefing, BriefingType
 from app.pipeline.kospi import run_pipeline
 from app.pipeline.nasdaq import run_nasdaq_pipeline
-from app.pipeline.research import run_news_dive_pipeline
 from app.pipeline.issue_dive import run_issue_dive_pipeline
+from app.pipeline.economy_content import run_economy_content_pipeline
 from app.pipeline.real_estate import run_real_estate_pipeline
 from app.pipeline.stock_deep_dive import run_stock_deep_dive_pipeline
 from app.pipeline.chart_analysis import run_chart_analysis_pipeline
@@ -35,8 +35,8 @@ KST = timezone(timedelta(hours=9))
 BRIEFING_TYPE_MAP: dict[str, str] = {
     "kospi": BriefingType.KOSPI,
     "nasdaq": BriefingType.NASDAQ,
-    "news_dive": BriefingType.NEWS_DIVE,
     "issue_dive": BriefingType.ISSUE_DIVE,
+    "economy_content": BriefingType.ECONOMY_CONTENT,
     "real_estate": BriefingType.REAL_ESTATE,
     "stock_deep_dive": BriefingType.STOCK_DEEP_DIVE,
     "portfolio": BriefingType.PORTFOLIO,
@@ -58,13 +58,6 @@ PIPELINES: list[dict[str, Any]] = [
         "description": "미국 증시 요약 브리핑을 생성합니다.",
         "schedule": "화–토 08:00",
         "func": run_nasdaq_pipeline,
-    },
-    {
-        "id": "news_dive",
-        "name": "뉴스 딥다이브",
-        "description": "주요 뉴스를 분석하고 관련 종목을 스크리닝합니다.",
-        "schedule": "매일 09:00",
-        "func": run_news_dive_pipeline,
     },
     {
         "id": "issue_dive",
@@ -119,13 +112,20 @@ PIPELINES: list[dict[str, Any]] = [
         "schedule": "매일 07:00",
         "func": run_trend_collection,
     },
+    {
+        "id": "economy_content",
+        "name": "경제 상식",
+        "description": "부동산/경제/투자 개념을 쉽게 풀어주는 글을 자동 생성합니다.",
+        "schedule": "매일 07:00 / 11:00 / 17:00",
+        "func": run_economy_content_pipeline,
+    },
 ]
 
 # ── 인메모리 실행 상태 ────────────────────────────────────────
 _run_state: dict[str, dict[str, Any]] = {}
 
 
-_USE_DEFAULT_EMAIL = {"portfolio", "trend_collection"}  # email_to를 주입하지 않는 파이프라인
+_USE_DEFAULT_EMAIL = {"portfolio", "trend_collection", "economy_content"}  # email_to를 주입하지 않는 파이프라인
 
 
 async def _execute(pipeline_id: str, func, **kwargs):

@@ -17,11 +17,6 @@ THEME_PATTERNS: dict[str, str] = {
     "theme_leader": "{keyword} 대장주",
 }
 
-CONCEPT_PATTERNS: dict[str, str] = {
-    "concept_definition": "{keyword}이란?",
-    "concept_structure": "{keyword} 구조",
-}
-
 # ── 시드 데이터 ──
 
 THEMES = [
@@ -50,18 +45,6 @@ def _build_seed_rows() -> list[dict]:
                 "title_template": tmpl.format(keyword=theme),
                 "focus_keyword": tmpl.format(keyword=theme),
                 "priority": 8,
-                "source": "template",
-            })
-
-    # 개념: 패턴별로 돌림
-    for ptype, tmpl in CONCEPT_PATTERNS.items():
-        for concept in CONCEPTS:
-            rows.append({
-                "pattern_type": ptype,
-                "keyword": concept,
-                "title_template": tmpl.format(keyword=concept),
-                "focus_keyword": tmpl.format(keyword=concept),
-                "priority": 6,
                 "source": "template",
             })
 
