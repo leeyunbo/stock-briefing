@@ -102,7 +102,7 @@ def generate_economy_article(
     raw = provider.call(system_prompt, user_prompt)
     raw = strip_code_block(raw)
 
-    seo = extract_seo_metadata(raw, keyword)
+    seo = extract_seo_metadata(raw)
 
     if not seo.title:
         seo.title = f"{keyword} 쉽게 이해하기"
