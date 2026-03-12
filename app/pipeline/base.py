@@ -144,6 +144,7 @@ class WordPressPublisher:
             focus_keyword=result.focus_keyword,
             seo_description=result.excerpt,
             unsplash_image=unsplash_result,
+            faq_schema_json=kwargs.get("faq_schema_json", ""),
         )
         blog_url = wp_result[1] if wp_result else ""
         briefing_id = kwargs.get("briefing_id")
@@ -191,6 +192,10 @@ async def deliver(ctx: PipelineContext) -> None:
     email_to: list[str] | None = ctx.get("email_to")
 
     shared: dict = {"email_to": email_to}
+    # FAQ 스키마가 있으면 WordPressPublisher에 전달
+    faq_schema_json = ctx.get("faq_schema_json")
+    if faq_schema_json:
+        shared["faq_schema_json"] = faq_schema_json
     for pub in DEFAULT_PUBLISHERS:
         out = await pub.publish(result, briefing_type, **shared)
         shared.update(out)

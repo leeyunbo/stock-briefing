@@ -13,6 +13,7 @@ from app.pipeline.portfolio import run_portfolio_pipeline
 from app.pipeline.crypto_trading import run_trading_pipeline, run_ai_strategy_pipeline
 from app.pipeline.seo_content import run_seo_content_pipeline
 from app.pipeline.gsc_collect import run_gsc_collection
+from app.pipeline.trend_collect import run_trend_collection
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,15 @@ def start_scheduler():
         kwargs={"email_to": []},
     )
 
+    # 트렌드 키워드 수집: 매일 오전 7시 (SEO 발행 14시 전에)
+    scheduler.add_job(
+        run_trend_collection,
+        trigger="cron",
+        hour=7,
+        minute=0,
+        id="trend_collection",
+    )
+
     # GSC 수집: 매주 월요일 오전 6시
     scheduler.add_job(
         run_gsc_collection,
@@ -145,5 +155,5 @@ def start_scheduler():
     )
 
     scheduler.start()
-    logger.info("스케줄러 시작: 한국 월~금 20시, 나스닥 화~토 8시, 포트폴리오 화~토 8:30, 뉴스딥다이브 매일 9시, 이슈딥다이브 매일 10/15/21시, 종목딥다이브 매일 11시, SEO콘텐츠 매일 14시, 부동산 월 7시, GSC수집 월 6시, 다이제스트 매일 22시, 코인트레이딩 15분, 코인AI전략 1시간")
+    logger.info("스케줄러 시작: 한국 월~금 20시, 나스닥 화~토 8시, 포트폴리오 화~토 8:30, 뉴스딥다이브 매일 9시, 이슈딥다이브 매일 10/15/21시, 종목딥다이브 매일 11시, 트렌드수집 매일 7시, SEO콘텐츠 매일 14시, 부동산 월 7시, GSC수집 월 6시, 다이제스트 매일 22시, 코인트레이딩 15분, 코인AI전략 1시간")
     return scheduler

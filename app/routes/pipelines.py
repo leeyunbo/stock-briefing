@@ -22,6 +22,7 @@ from app.pipeline.stock_deep_dive import run_stock_deep_dive_pipeline
 from app.pipeline.chart_analysis import run_chart_analysis_pipeline
 from app.pipeline.portfolio import run_portfolio_pipeline
 from app.pipeline.seo_content import run_seo_content_pipeline
+from app.pipeline.trend_collect import run_trend_collection
 
 logger = logging.getLogger(__name__)
 
@@ -111,13 +112,20 @@ PIPELINES: list[dict[str, Any]] = [
         "schedule": "매일 14:00",
         "func": run_seo_content_pipeline,
     },
+    {
+        "id": "trend_collection",
+        "name": "트렌드 키워드 수집",
+        "description": "Google Trends + 네이버 DataLab에서 투자 관련 트렌드 키워드를 수집합니다.",
+        "schedule": "매일 07:00",
+        "func": run_trend_collection,
+    },
 ]
 
 # ── 인메모리 실행 상태 ────────────────────────────────────────
 _run_state: dict[str, dict[str, Any]] = {}
 
 
-_USE_DEFAULT_EMAIL = {"portfolio"}  # 자체 기본 수신자를 사용하는 파이프라인
+_USE_DEFAULT_EMAIL = {"portfolio", "trend_collection"}  # email_to를 주입하지 않는 파이프라인
 
 
 async def _execute(pipeline_id: str, func, **kwargs):

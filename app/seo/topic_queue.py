@@ -12,13 +12,6 @@ logger = logging.getLogger(__name__)
 
 # ── 패턴 정의 ──
 
-STOCK_PATTERNS: dict[str, str] = {
-    "stock_dividend": "{keyword} 배당금 총정리",
-    "stock_target_price": "{keyword} 목표주가 및 전망",
-    "stock_earnings": "{keyword} 실적 분석",
-    "stock_outlook": "{keyword} 주가 전망",
-}
-
 THEME_PATTERNS: dict[str, str] = {
     "theme_related": "{keyword} 관련주",
     "theme_leader": "{keyword} 대장주",
@@ -30,19 +23,6 @@ CONCEPT_PATTERNS: dict[str, str] = {
 }
 
 # ── 시드 데이터 ──
-
-KR_STOCKS = [
-    "삼성전자", "SK하이닉스", "현대차", "기아", "POSCO홀딩스",
-    "셀트리온", "KB금융", "신한지주", "NAVER", "카카오",
-    "LG에너지솔루션", "삼성바이오로직스", "현대모비스", "LG화학", "삼성SDI",
-    "한화에어로스페이스", "HD현대중공업", "SK이노베이션", "두산에너빌리티", "크래프톤",
-]
-
-US_STOCKS: list[tuple[str, str]] = [
-    ("엔비디아", "NVDA"), ("테슬라", "TSLA"), ("애플", "AAPL"),
-    ("마이크로소프트", "MSFT"), ("아마존", "AMZN"), ("구글", "GOOGL"),
-    ("메타", "META"), ("넷플릭스", "NFLX"), ("AMD", "AMD"), ("팔란티어", "PLTR"),
-]
 
 THEMES = [
     "AI 반도체", "2차전지", "로봇", "양자컴퓨터", "방산",
@@ -60,23 +40,6 @@ CONCEPTS = [
 def _build_seed_rows() -> list[dict]:
     """시드 토픽 목록 생성."""
     rows: list[dict] = []
-
-    # 종목: 패턴별로 종목을 돌려서 분산 (삼전→하이닉스→...→삼전 목표주가→...)
-    all_stocks = [(stock, "") for stock in KR_STOCKS] + [(kw, tk) for kw, tk in US_STOCKS]
-
-    for ptype, tmpl in STOCK_PATTERNS.items():
-        for keyword, ticker in all_stocks:
-            row = {
-                "pattern_type": ptype,
-                "keyword": keyword,
-                "title_template": tmpl.format(keyword=keyword),
-                "focus_keyword": tmpl.format(keyword=keyword).replace(" 총정리", ""),
-                "priority": 10,
-                "source": "template",
-            }
-            if ticker:
-                row["ticker"] = ticker
-            rows.append(row)
 
     # 테마: 패턴별로 돌림
     for ptype, tmpl in THEME_PATTERNS.items():

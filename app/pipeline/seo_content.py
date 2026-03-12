@@ -10,8 +10,6 @@ from asyncio import to_thread
 from datetime import date
 from typing import Any
 
-from app.collector.kr_research_models import KRStockResearchData
-from app.collector.research_models import StockResearchData
 from app.core.models import BriefingType, SeoTopic
 from app.pipeline.base import BriefingResult, PipelineContext, deliver, run_steps
 from app.tracing import generate_run_id
@@ -26,8 +24,7 @@ class SeoContentContext(PipelineContext, total=False):
     topic_id: int
     pattern_type: str
     keyword: str
-    kr_data: KRStockResearchData | None
-    us_data: StockResearchData | None
+    faq_schema_json: str
     wp_post_id: int
     blog_url: str
 
@@ -65,26 +62,22 @@ async def pick_topic(ctx: SeoContentContext) -> None:
 async def classify_and_collect(ctx: SeoContentContext) -> None:
     """Stage 2: 패턴에 따라 데이터를 수집한다.
 
-    stock_* 패턴이면 ticker 유무로 US/KR을 구분하여 풍부한 수집기를 호출한다.
-    theme_*/concept_* 패턴이면 데이터 수집 없이 진행한다.
+    theme_* — 키워드 기반 뉴스 검색으로 관련 종목/데이터 수집
+    concept_*/gsc_* — 키워드 기반 뉴스/웹 검색 데이터 수집
+    데이터 수집 실패 시 토픽은 pending 유지, 파이프라인만 종료.
     """
     pattern = ctx["pattern_type"]
     keyword = ctx["keyword"]
 
+    # stock_* 패턴이 혹시 큐에 남아있으면 스킵
     if pattern.startswith("stock_"):
-        topic: SeoTopic = ctx["topic"]
-        ticker = topic.ticker
+        logger.info("[SEO Stage 2] stock_* 패턴은 SEO 파이프라인에서 제외: %s", keyword)
+        from app.seo.topic_queue import mark_skipped
+        await mark_skipped(ctx["topic_id"])
+        ctx["skip"] = True
+        return
 
-        if ticker:  # US 종목
-            logger.info("[SEO Stage 2] US 종목 데이터 수집: %s (%s)", keyword, ticker)
-            from app.collector.stock_research import fetch_stock_research
-            ctx["us_data"] = await fetch_stock_research(ticker)
-        else:  # KR 종목
-            logger.info("[SEO Stage 2] KR 종목 데이터 수집: %s", keyword)
-            from app.collector.kr_stock_research import fetch_kr_stock_research
-            ctx["kr_data"] = await fetch_kr_stock_research(keyword)
-    else:
-        logger.info("[SEO Stage 2] 데이터 수집 불필요: pattern=%s", pattern)
+    logger.info("[SEO Stage 2] 데이터 수집: pattern=%s, keyword=%s", pattern, keyword)
 
 
 async def dedup_check(ctx: SeoContentContext) -> None:
@@ -113,12 +106,26 @@ async def generate_article(ctx: SeoContentContext) -> None:
         generate_seo_article,
         ctx["pattern_type"],
         ctx["keyword"],
-        ctx.get("kr_data"),
-        ctx.get("us_data"),
+        None,
+        None,
         ctx["run_id"],
     )
     ctx["result"] = result
     logger.info("[SEO Stage 4] 글 생성 완료: '%s'", result.title[:50])
+
+
+async def inject_faq_schema(ctx: SeoContentContext) -> None:
+    """Stage 5: FAQ 스키마를 추출한다.
+
+    WAF가 <script> 태그를 차단하므로 본문에 삽입하지 않고,
+    Rank Math meta로 전달하기 위해 ctx에 저장한다.
+    """
+    from app.seo.faq_schema import extract_faq_schema_json
+
+    result: BriefingResult = ctx["result"]
+    faq_json = extract_faq_schema_json(result.html)
+    if faq_json:
+        ctx["faq_schema_json"] = faq_json
 
 
 async def post_publish_hooks(ctx: SeoContentContext) -> None:
@@ -207,6 +214,7 @@ SEO_CONTENT_STEPS = [
     classify_and_collect,
     dedup_check,
     generate_article,
+    inject_faq_schema,
     deliver,
     post_publish_hooks,
 ]

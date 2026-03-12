@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Money Dive</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f7f8fa;
+            color: #191f28;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+        .header h1 {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .header-stat {
+            background: #fff;
+            border: 1px solid #e5e8eb;
+            border-radius: 12px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .header-stat .num { color: #3182f6; font-size: 18px; }
+        .nav-link {
+            color: #6b7684;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.15s;
+        }
+        .nav-link:hover { color: #3182f6; }
+
+        /* Section */
+        .section {
+            margin-bottom: 36px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-title .badge {
+            font-size: 12px;
+            background: #e8f3ff;
+            color: #3182f6;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        /* Calendar Heatmap */
+        .calendar-wrap {
+            background: #fff;
+            border: 1px solid #e5e8eb;
+            border-radius: 16px;
+            padding: 24px;
+            overflow-x: auto;
+        }
+        .calendar-labels {
+            display: flex;
+            align-items: flex-start;
+            gap: 0;
+        }
+        .calendar-row-labels {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-right: 8px;
+            padding-top: 20px;
+        }
+        .calendar-row-label {
+            height: 14px;
+            font-size: 10px;
+            color: #8b95a1;
+            display: flex;
+            align-items: center;
+            line-height: 14px;
+            min-width: 50px;
+        }
+        .calendar-grid {
+            display: flex;
+            gap: 2px;
+        }
+        .calendar-col {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .calendar-month {
+            font-size: 10px;
+            color: #8b95a1;
+            height: 16px;
+            text-align: center;
+        }
+        .calendar-cell {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            background: #ebeef1;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.1s;
+        }
+        .calendar-cell:hover {
+            transform: scale(1.5);
+            z-index: 10;
+        }
+        .calendar-cell.today {
+            outline: 2px solid #3182f6;
+            outline-offset: 1px;
+        }
+        .calendar-cell.lv0 { background: #ebeef1; }
+        .calendar-cell.lv1 { background: #9be9a8; }
+        .calendar-cell.lv2 { background: #40c463; }
+        .calendar-cell.lv3 { background: #30a14e; }
+        .calendar-cell.lv4 { background: #216e39; }
+
+        /* Tooltip */
+        .tooltip {
+            display: none;
+            position: fixed;
+            background: #191f28;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 100;
+            white-space: pre-line;
+            line-height: 1.6;
+            max-width: 220px;
+        }
+
+        /* Pipeline Legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #6b7684;
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+
+        /* Pipeline detail row */
+        .pipeline-rows {
+            margin-top: 16px;
+        }
+        .pipeline-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 3px;
+        }
+        .pipeline-row-label {
+            font-size: 11px;
+            color: #8b95a1;
+            min-width: 55px;
+            text-align: right;
+        }
+        .pipeline-row-cells {
+            display: flex;
+            gap: 2px;
+        }
+        .mini-cell {
+            width: 14px;
+            height: 10px;
+            border-radius: 2px;
+            background: #f2f4f6;
+        }
+        .mini-cell.active { background: #3182f6; }
+        .mini-cell.multi { background: #0051c7; }
+
+        /* Trend Keywords */
+        .keyword-cloud {
+            background: #fff;
+            border: 1px solid #e5e8eb;
+            border-radius: 16px;
+            padding: 24px;
+            min-height: 200px;
+        }
+        .cloud-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+            padding: 12px 0;
+        }
+        .keyword-tag {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: default;
+            transition: transform 0.15s, box-shadow 0.15s;
+            white-space: nowrap;
+        }
+        .keyword-tag:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .keyword-tag.stock { background: #e8f3ff; color: #0969da; }
+        .keyword-tag.theme { background: #fff3e0; color: #e65100; }
+        .keyword-tag.concept { background: #f3e8ff; color: #7c3aed; }
+        .keyword-tag.gsc { background: #e8faf0; color: #0a7d40; }
+        .keyword-tag.published { opacity: 0.45; text-decoration: line-through; }
+
+        .keyword-tag.sz-lg { font-size: 17px; padding: 8px 18px; }
+        .keyword-tag.sz-md { font-size: 14px; }
+        .keyword-tag.sz-sm { font-size: 12px; padding: 4px 10px; }
+
+        /* Stats Cards */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #fff;
+            border: 1px solid #e5e8eb;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-card .label {
+            font-size: 12px;
+            color: #8b95a1;
+            margin-bottom: 4px;
+        }
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 800;
+            color: #191f28;
+        }
+        .stat-card .value.blue { color: #3182f6; }
+        .stat-card .value.green { color: #00b853; }
+        .stat-card .value.orange { color: #f59e0b; }
+
+        /* Queue Table */
+        .queue-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .queue-table th {
+            background: #f7f8fa;
+            padding: 8px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #6b7684;
+            border-bottom: 1px solid #e5e8eb;
+        }
+        .queue-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f2f4f6;
+        }
+        .queue-table tr:last-child td { border-bottom: none; }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+        .status-dot.pending { background: #f59e0b; }
+        .status-dot.published { background: #00b853; }
+        .status-dot.skipped { background: #d1d6db; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <div class="header-stat">
+                    오늘 발행 <span class="num">{{ today_count }}</span>건
+                </div>
+                <a href="/pipelines" class="nav-link">파이프라인 →</a>
+                <a href="/traces" class="nav-link">트레이스 →</a>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="label">오늘 발행</div>
+                <div class="value blue">{{ today_count }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">트렌드 키워드</div>
+                <div class="value orange">{{ trend_keywords|length }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">토픽 대기</div>
+                <div class="value">{{ status_counts.pending }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">토픽 발행완료</div>
+                <div class="value green">{{ status_counts.published }}</div>
+            </div>
+        </div>
+
+        <!-- Pipeline Calendar -->
+        <div class="section">
+            <div class="section-title">
+                파이프라인 실행 캘린더
+                <span class="badge">최근 8주</span>
+            </div>
+
+            <!-- Combined Heatmap -->
+            <div class="calendar-wrap">
+                <div class="calendar-labels">
+                    <div class="calendar-row-labels">
+                        <div class="calendar-row-label" style="height:16px"></div>
+                        <div class="calendar-row-label">월</div>
+                        <div class="calendar-row-label">화</div>
+                        <div class="calendar-row-label">수</div>
+                        <div class="calendar-row-label">목</div>
+                        <div class="calendar-row-label">금</div>
+                        <div class="calendar-row-label">토</div>
+                        <div class="calendar-row-label">일</div>
+                    </div>
+                    <div class="calendar-grid">
+                        {% set ns = namespace(prev_month='') %}
+                        {% for week in weeks %}
+                        <div class="calendar-col">
+                            {# month label from first non-None day #}
+                            {% set ns.month_shown = false %}
+                            {% for d in week if d is not none and not ns.month_shown %}
+                                {% set month_label = d.date_str[:7] %}
+                                {% if month_label != ns.prev_month %}
+                                    <div class="calendar-month">{{ d.date_str[5:7] | int }}월</div>
+                                    {% set ns.prev_month = month_label %}
+                                {% else %}
+                                    <div class="calendar-month"></div>
+                                {% endif %}
+                                {% set ns.month_shown = true %}
+                            {% endfor %}
+                            {% if not ns.month_shown %}
+                                <div class="calendar-month"></div>
+                            {% endif %}
+                            {% for d in week %}
+                                {% if d is not none %}
+                                    <div class="calendar-cell lv{{ d.level }}{% if d.is_today %} today{% endif %}"
+                                         data-date="{{ d.date_str }}"
+                                         data-total="{{ d.total }}"
+                                         {% for ptype in pipeline_order %}
+                                         data-p-{{ loop.index0 }}="{{ d.pipelines[ptype] }}"
+                                         {% endfor %}
+                                    ></div>
+                                {% else %}
+                                    <div class="calendar-cell" style="visibility:hidden"></div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-dot" style="background:#ebeef1"></div> 0건</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#9be9a8"></div> 1-2</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#40c463"></div> 3-5</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#30a14e"></div> 6-8</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#216e39"></div> 9+</div>
+                </div>
+
+                <!-- Pipeline detail rows -->
+                <div class="pipeline-rows">
+                    {% for ptype in pipeline_order %}
+                    <div class="pipeline-row">
+                        <span class="pipeline-row-label">{{ pipeline_labels[ptype] }}</span>
+                        <div class="pipeline-row-cells">
+                            {% for day in all_days %}
+                                {% set cnt = day.pipelines[ptype] %}
+                                <div class="mini-cell{% if cnt == 1 %} active{% elif cnt > 1 %} multi{% endif %}"
+                                     title="{{ day.date_str }}: {{ cnt }}건"></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Trend Keywords -->
+        <div class="section">
+            <div class="section-title">
+                트렌드 키워드
+                <span class="badge">{{ trend_keywords|length }}개</span>
+            </div>
+            <div class="keyword-cloud">
+                <div class="cloud-container">
+                    {% for tk in trend_keywords %}
+                        {% if tk.pattern.startswith('stock') %}{% set cls = 'stock' %}
+                        {% elif tk.pattern.startswith('theme') %}{% set cls = 'theme' %}
+                        {% elif tk.pattern.startswith('concept') %}{% set cls = 'concept' %}
+                        {% else %}{% set cls = 'gsc' %}
+                        {% endif %}
+                        {% if loop.index <= 20 %}{% set sz = 'sz-lg' %}
+                        {% elif loop.index <= 60 %}{% set sz = 'sz-md' %}
+                        {% else %}{% set sz = 'sz-sm' %}
+                        {% endif %}
+                        <span class="keyword-tag {{ cls }} {{ sz }}{% if tk.status == 'published' %} published{% endif %}"
+                              title="{{ tk.pattern }} | {{ tk.status }}">
+                            {{ tk.keyword }}
+                        </span>
+                    {% endfor %}
+                </div>
+
+                <div class="legend" style="margin-top:16px; justify-content:center;">
+                    <div class="legend-item"><div class="legend-dot" style="background:#e8f3ff"></div> 종목</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#fff3e0"></div> 테마</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#f3e8ff"></div> 개념</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#e8faf0"></div> 기타</div>
+                    <div class="legend-item" style="margin-left:12px;"><span style="opacity:0.45; text-decoration:line-through">발행완료</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Topic Queue Stats -->
+        <div class="section">
+            <div class="section-title">토픽 큐 현황</div>
+            <div class="calendar-wrap">
+                <table class="queue-table">
+                    <thead>
+                        <tr>
+                            <th>소스</th>
+                            <th>대기</th>
+                            <th>발행</th>
+                            <th>스킵</th>
+                            <th>합계</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for src, stats in queue_stats.items() %}
+                        <tr>
+                            <td>
+                                {% if src == 'template' %}시드
+                                {% elif src == 'trend' %}트렌드
+                                {% elif src == 'gsc' %}GSC
+                                {% else %}{{ src }}
+                                {% endif %}
+                            </td>
+                            <td><span class="status-dot pending"></span>{{ stats.get('pending', 0) }}</td>
+                            <td><span class="status-dot published"></span>{{ stats.get('published', 0) }}</td>
+                            <td><span class="status-dot skipped"></span>{{ stats.get('skipped', 0) }}</td>
+                            <td><strong>{{ stats.values()|sum }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+    // Calendar tooltip
+    const tooltip = document.getElementById('tooltip');
+    const pipelineLabels = {{ pipeline_labels | tojson }};
+    const pipelineOrder = {{ pipeline_order | tojson }};
+
+    document.querySelectorAll('.calendar-cell').forEach(cell => {
+        cell.addEventListener('mouseenter', e => {
+            const date = cell.dataset.date;
+            const total = cell.dataset.total;
+            let lines = [`${date}  (${total}건)`];
+
+            pipelineOrder.forEach((ptype, i) => {
+                const cnt = parseInt(cell.dataset[`p${i}`] || '0');
+                if (cnt > 0) {
+                    lines.push(`  ${pipelineLabels[ptype]}: ${cnt}건`);
+                }
+            });
+
+            tooltip.textContent = lines.join('\n');
+            tooltip.style.display = 'block';
+            const rect = cell.getBoundingClientRect();
+            tooltip.style.left = (rect.left + 20) + 'px';
+            tooltip.style.top = (rect.top - 10) + 'px';
+        });
+
+        cell.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+        });
+    });
+    </script>
+</body>
+</html>

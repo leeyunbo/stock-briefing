@@ -126,6 +126,7 @@ async def _update_rankmath_meta(
     description: str = "",
     og_image_url: str = "",
     category_id: int | None = None,
+    faq_schema_json: str = "",
 ) -> None:
     """Rank Math SEO 메타데이터를 WordPress REST API로 직접 설정한다.
 
@@ -157,6 +158,10 @@ async def _update_rankmath_meta(
     if category_id:
         meta["rank_math_primary_category"] = str(category_id)
 
+    # FAQ 스키마 (Rank Math가 프론트엔드에서 렌더링)
+    if faq_schema_json:
+        meta["rank_math_schema_FAQPage"] = faq_schema_json
+
     if not meta:
         return
 
@@ -185,6 +190,7 @@ async def publish_to_wordpress(
     focus_keyword: str = "",
     seo_description: str = "",
     unsplash_image: tuple[bytes, str, str] | None = None,
+    faq_schema_json: str = "",
 ) -> tuple[int, str] | None:
     """WordPress에 포스트를 발행하고 (post_id, post_link)를 반환한다.
 
@@ -252,9 +258,14 @@ async def publish_to_wordpress(
                         + content_html
                     )
 
+            # WAF가 <script> 태그를 차단하므로 본문에서 제거
+            clean_html = re.sub(
+                r'<script[^>]*>.*?</script>', '', content_html, flags=re.DOTALL,
+            )
+
             payload = {
                 "title": title,
-                "content": content_html,
+                "content": clean_html,
                 "status": status,
                 "categories": category_ids,
             }
@@ -287,6 +298,7 @@ async def publish_to_wordpress(
                     description=seo_description or excerpt,
                     og_image_url=og_image_url,
                     category_id=category_ids[0] if category_ids else None,
+                    faq_schema_json=faq_schema_json,
                 )
 
                 # Google Indexing API 자동 요청
