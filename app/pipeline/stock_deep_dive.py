@@ -93,8 +93,26 @@ async def pick_stock(ctx: StockDeepDiveContext) -> None:
     macro_text = macro.model_dump_json(indent=2) if macro else "{}"
     kr_market_text = ctx.get("kr_market_text", "")
 
+    # 최근 7일 발행 종목 조회 → AI에 제외 목록 전달
+    from datetime import timedelta
+    from sqlalchemy import select
+    from app.core.database import async_session
+    from app.core.models import Briefing
+    cutoff = date.today() - timedelta(days=7)
+    async with async_session() as db:
+        rows = await db.execute(
+            select(Briefing.title)
+            .where(
+                Briefing.briefing_type == BriefingType.STOCK_DEEP_DIVE,
+                Briefing.date >= cutoff,
+            )
+        )
+        recent_titles = [r[0] for r in rows.all()]
+    logger.info("[종목딥다이브 Stage 2] 최근 7일 발행 종목 %d건 제외", len(recent_titles))
+
     result = await to_thread(
         call_pick_stock, scan_text, macro_text, kr_market_text,
+        recent_titles=recent_titles,
         run_id=ctx["run_id"],
     )
     ctx["ticker"] = result["ticker"]

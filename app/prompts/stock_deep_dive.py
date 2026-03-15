@@ -35,7 +35,7 @@ PICK_STOCK_SYSTEM = """당신은 시장 분석 전문가예요. 오늘의 시장
 """
 
 
-def pick_stock_prompt(scan_text: str, macro_text: str, kr_market_text: str) -> str:
+def pick_stock_prompt(scan_text: str, macro_text: str, kr_market_text: str, recent_titles: list[str] | None = None) -> str:
     """자동 모드 종목 선정용 프롬프트를 빌드한다."""
     parts = [
         f"## 오늘 날짜: {date.today().isoformat()}\n",
@@ -45,14 +45,16 @@ def pick_stock_prompt(scan_text: str, macro_text: str, kr_market_text: str) -> s
         macro_text,
         "\n## KR 시장 데이터\n",
         kr_market_text,
-        "\n위 데이터를 종합해서 오늘 딥다이브 분석할 종목 1개를 선정해주세요.",
     ]
+    if recent_titles:
+        parts.append("\n## 최근 7일 이내 발행된 종목 (반드시 제외)\n" + "\n".join(f"- {t}" for t in recent_titles))
+    parts.append("\n위 데이터를 종합해서 오늘 딥다이브 분석할 종목 1개를 선정해주세요.")
     return "\n".join(parts)
 
 
-def call_pick_stock(scan_text: str, macro_text: str, kr_market_text: str, run_id: str = "") -> dict:
+def call_pick_stock(scan_text: str, macro_text: str, kr_market_text: str, recent_titles: list[str] | None = None, run_id: str = "") -> dict:
     """LLM #1: 자동 종목 선정."""
-    prompt = pick_stock_prompt(scan_text, macro_text, kr_market_text)
+    prompt = pick_stock_prompt(scan_text, macro_text, kr_market_text, recent_titles)
     provider = get_cli_provider(
         timeout=120, pipeline="stock_deep_dive", stage="pick_stock", run_id=run_id,
     )
