@@ -1,0 +1,189 @@
+<svg viewBox="0 0 1100 820" xmlns="http://www.w3.org/2000/svg" font-family="'Pretendard Variable', Pretendard, system-ui, sans-serif">
+  <rect width="1100" height="820" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="550" y="36" text-anchor="middle" font-size="17" font-weight="700" fill="#18181b">Stock Briefing — 시스템 아키텍처</text>
+
+  <!-- ── ① 외부 데이터 소스 ── -->
+  <rect x="30" y="56" width="760" height="110" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+  <text x="50" y="76" font-size="11" font-weight="700" fill="#16a34a" letter-spacing="1">① 외부 데이터 소스</text>
+
+  <rect x="50" y="86" width="130" height="64" rx="6" fill="#ffffff" stroke="#86efac" stroke-width="1.5"/>
+  <text x="115" y="108" text-anchor="middle" font-size="11" font-weight="600" fill="#15803d">네이버 금융</text>
+  <text x="115" y="124" text-anchor="middle" font-size="10" fill="#6b7280">KOSPI · KOSDAQ</text>
+  <text x="115" y="138" text-anchor="middle" font-size="10" fill="#6b7280">종목 시세</text>
+
+  <rect x="196" y="86" width="120" height="64" rx="6" fill="#ffffff" stroke="#86efac" stroke-width="1.5"/>
+  <text x="256" y="108" text-anchor="middle" font-size="11" font-weight="600" fill="#15803d">DART</text>
+  <text x="256" y="124" text-anchor="middle" font-size="10" fill="#6b7280">기업 공시</text>
+  <text x="256" y="138" text-anchor="middle" font-size="10" fill="#6b7280">수시·정기보고서</text>
+
+  <rect x="332" y="86" width="136" height="64" rx="6" fill="#ffffff" stroke="#86efac" stroke-width="1.5"/>
+  <text x="400" y="108" text-anchor="middle" font-size="11" font-weight="600" fill="#15803d">Finnhub · yfinance</text>
+  <text x="400" y="124" text-anchor="middle" font-size="10" fill="#6b7280">나스닥 · S&amp;P · 다우</text>
+  <text x="400" y="138" text-anchor="middle" font-size="10" fill="#6b7280">매크로 지표 (VIX 등)</text>
+
+  <rect x="484" y="86" width="110" height="64" rx="6" fill="#ffffff" stroke="#86efac" stroke-width="1.5"/>
+  <text x="539" y="108" text-anchor="middle" font-size="11" font-weight="600" fill="#15803d">SEC EDGAR</text>
+  <text x="539" y="124" text-anchor="middle" font-size="10" fill="#6b7280">미국 공시</text>
+  <text x="539" y="138" text-anchor="middle" font-size="10" fill="#6b7280">10-K · 8-K</text>
+
+  <rect x="610" y="86" width="162" height="64" rx="6" fill="#fdf4ff" stroke="#e9d5ff" stroke-width="1.5"/>
+  <text x="691" y="108" text-anchor="middle" font-size="11" font-weight="600" fill="#7c3aed">AI / LLM</text>
+  <text x="691" y="124" text-anchor="middle" font-size="10" fill="#6b7280">Claude API · Claude CLI</text>
+  <text x="691" y="138" text-anchor="middle" font-size="10" fill="#6b7280">Gemini (생성 + 임베딩)</text>
+
+  <line x1="410" y1="166" x2="410" y2="186" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="420" y="179" font-size="10" fill="#94a3b8">HTTP / API 호출</text>
+
+  <!-- ── ② 수집기 ── -->
+  <rect x="30" y="190" width="760" height="100" rx="8" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="50" y="210" font-size="11" font-weight="700" fill="#1d4ed8" letter-spacing="1">② 수집기   app/collector/</text>
+
+  <rect x="50" y="220" width="148" height="56" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="124" y="241" text-anchor="middle" font-size="10" font-weight="600" fill="#1d4ed8">market · nasdaq</text>
+  <text x="124" y="257" text-anchor="middle" font-size="10" fill="#6b7280">시장 지표 수집</text>
+  <text x="124" y="270" text-anchor="middle" font-size="10" fill="#6b7280">market_scan (매크로)</text>
+
+  <rect x="214" y="220" width="148" height="56" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="288" y="241" text-anchor="middle" font-size="10" font-weight="600" fill="#1d4ed8">news · dart</text>
+  <text x="288" y="257" text-anchor="middle" font-size="10" fill="#6b7280">뉴스 · 공시 수집</text>
+  <text x="288" y="270" text-anchor="middle" font-size="10" fill="#6b7280">네이버 뉴스 API</text>
+
+  <rect x="378" y="220" width="172" height="56" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="464" y="241" text-anchor="middle" font-size="10" font-weight="600" fill="#1d4ed8">stock_research · kr_stock</text>
+  <text x="464" y="257" text-anchor="middle" font-size="10" fill="#6b7280">종목 리서치 (KR · US)</text>
+  <text x="464" y="270" text-anchor="middle" font-size="10" fill="#6b7280">기술적 지표 (RSI · MACD)</text>
+
+  <rect x="566" y="220" width="206" height="56" rx="6" fill="#fdf4ff" stroke="#e9d5ff" stroke-width="1.5"/>
+  <text x="669" y="241" text-anchor="middle" font-size="10" font-weight="600" fill="#7c3aed">dedup (ChromaDB)</text>
+  <text x="669" y="257" text-anchor="middle" font-size="10" fill="#6b7280">Gemini 시맨틱 임베딩</text>
+  <text x="669" y="270" text-anchor="middle" font-size="10" fill="#6b7280">중복 콘텐츠 제거</text>
+
+  <line x1="410" y1="290" x2="410" y2="310" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="420" y="303" font-size="10" fill="#94a3b8">수집 데이터 (Pydantic Models)</text>
+
+  <!-- ── ③ 파이프라인 ── -->
+  <rect x="30" y="314" width="760" height="160" rx="8" fill="#fafafa" stroke="#d1d5db" stroke-width="2"/>
+  <text x="50" y="334" font-size="11" font-weight="700" fill="#111827" letter-spacing="1">③ 파이프라인   app/pipeline/   |   APScheduler 자동 실행</text>
+
+  <!-- Row 1 -->
+  <rect x="50" y="344" width="166" height="52" rx="6" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1.5"/>
+  <text x="133" y="364" text-anchor="middle" font-size="10" font-weight="600" fill="#374151">코스피 브리핑</text>
+  <text x="133" y="380" text-anchor="middle" font-size="9" fill="#6b7280">국내 증시 마감 분석</text>
+
+  <rect x="228" y="344" width="166" height="52" rx="6" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1.5"/>
+  <text x="311" y="364" text-anchor="middle" font-size="10" font-weight="600" fill="#374151">나스닥 브리핑</text>
+  <text x="311" y="380" text-anchor="middle" font-size="9" fill="#6b7280">미국 증시 마감 분석</text>
+
+  <rect x="406" y="344" width="166" height="52" rx="6" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1.5"/>
+  <text x="489" y="364" text-anchor="middle" font-size="10" font-weight="600" fill="#374151">부동산 브리핑</text>
+  <text x="489" y="380" text-anchor="middle" font-size="9" fill="#6b7280">주간 부동산 뉴스 요약</text>
+
+  <rect x="584" y="344" width="198" height="52" rx="6" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5"/>
+  <text x="683" y="364" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">오늘의 이슈 딥다이브</text>
+  <text x="683" y="380" text-anchor="middle" font-size="9" fill="#6b7280">핵심 이슈 심층 분석</text>
+
+  <!-- Row 2 -->
+  <rect x="50" y="406" width="166" height="52" rx="6" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5"/>
+  <text x="133" y="426" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">주식 딥다이브</text>
+  <text x="133" y="442" text-anchor="middle" font-size="9" fill="#6b7280">AI 종목 선정 후 심층 분석</text>
+
+  <rect x="228" y="406" width="166" height="52" rx="6" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1.5"/>
+  <text x="311" y="426" text-anchor="middle" font-size="10" font-weight="600" fill="#374151">경제 상식</text>
+  <text x="311" y="442" text-anchor="middle" font-size="9" fill="#6b7280">경제 용어·개념 자동 생성</text>
+
+  <rect x="406" y="406" width="166" height="52" rx="6" fill="#fffbeb" stroke="#fde68a" stroke-width="1.5"/>
+  <text x="489" y="426" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">핫이슈 딥다이브</text>
+  <text x="489" y="442" text-anchor="middle" font-size="9" fill="#6b7280">토픽큐 기반 자동 발행</text>
+
+  <rect x="584" y="406" width="198" height="52" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+  <text x="683" y="426" text-anchor="middle" font-size="10" font-weight="600" fill="#15803d">핫이슈 수집</text>
+  <text x="683" y="442" text-anchor="middle" font-size="9" fill="#6b7280">실시간 토픽큐 적재</text>
+
+  <line x1="410" y1="474" x2="410" y2="494" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="420" y="487" font-size="10" fill="#94a3b8">프롬프트 빌드 + LLM 호출</text>
+
+  <!-- ── ④ 프롬프트 & LLM ── -->
+  <rect x="30" y="498" width="760" height="86" rx="8" fill="#fdf4ff" stroke="#e9d5ff" stroke-width="1.5"/>
+  <text x="50" y="518" font-size="11" font-weight="700" fill="#7c3aed" letter-spacing="1">④ 프롬프트 &amp; LLM   app/prompts/ · summarizer.py · tracing.py</text>
+
+  <rect x="50" y="528" width="230" height="46" rx="6" fill="#ffffff" stroke="#e9d5ff" stroke-width="1.5"/>
+  <text x="165" y="548" text-anchor="middle" font-size="10" font-weight="600" fill="#7c3aed">AiProvider</text>
+  <text x="165" y="564" text-anchor="middle" font-size="10" fill="#6b7280">Claude API · Gemini · Claude CLI</text>
+
+  <rect x="298" y="528" width="230" height="46" rx="6" fill="#ffffff" stroke="#e9d5ff" stroke-width="1.5"/>
+  <text x="413" y="548" text-anchor="middle" font-size="10" font-weight="600" fill="#7c3aed">TracingProvider</text>
+  <text x="413" y="564" text-anchor="middle" font-size="10" fill="#6b7280">LLM 호출 기록 · 품질 모니터링</text>
+
+  <rect x="546" y="528" width="226" height="46" rx="6" fill="#ffffff" stroke="#e9d5ff" stroke-width="1.5"/>
+  <text x="659" y="548" text-anchor="middle" font-size="10" font-weight="600" fill="#7c3aed">토픽큐 (우선순위 큐)</text>
+  <text x="659" y="564" text-anchor="middle" font-size="10" fill="#6b7280">핫한 토픽 자동 선별 후 순차 발행</text>
+
+  <line x1="410" y1="584" x2="410" y2="604" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ── ⑤ 발행 ── -->
+  <rect x="30" y="608" width="760" height="80" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+  <text x="50" y="628" font-size="11" font-weight="700" fill="#c2410c" letter-spacing="1">⑤ 발행   app/publishing/</text>
+
+  <rect x="50" y="638" width="110" height="36" rx="6" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+  <text x="105" y="661" text-anchor="middle" font-size="10" font-weight="600" fill="#c2410c">WordPress 발행</text>
+
+  <rect x="176" y="638" width="110" height="36" rx="6" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+  <text x="231" y="661" text-anchor="middle" font-size="10" font-weight="600" fill="#c2410c">이메일 발송</text>
+
+  <rect x="302" y="638" width="130" height="36" rx="6" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+  <text x="367" y="661" text-anchor="middle" font-size="10" font-weight="600" fill="#c2410c">OG 이미지 생성</text>
+
+  <rect x="448" y="638" width="130" height="36" rx="6" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+  <text x="513" y="654" text-anchor="middle" font-size="10" font-weight="600" fill="#c2410c">주가 차트 생성</text>
+  <text x="513" y="668" text-anchor="middle" font-size="9" fill="#6b7280">(Matplotlib)</text>
+
+  <rect x="594" y="638" width="168" height="36" rx="6" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+  <text x="678" y="654" text-anchor="middle" font-size="10" font-weight="600" fill="#c2410c">Google 색인 요청</text>
+  <text x="678" y="668" text-anchor="middle" font-size="9" fill="#6b7280">(SEO 자동화)</text>
+
+  <line x1="410" y1="688" x2="410" y2="708" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ── ⑥ 최종 대상 ── -->
+  <rect x="30" y="712" width="760" height="90" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="50" y="732" font-size="11" font-weight="700" fill="#475569" letter-spacing="1">⑥ 최종 대상</text>
+
+  <rect x="55" y="742" width="110" height="32" rx="16" fill="#1a1a2e"/>
+  <text x="110" y="763" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">SQLite DB</text>
+
+  <rect x="185" y="742" width="130" height="32" rx="16" fill="#21759b"/>
+  <text x="250" y="763" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">WordPress</text>
+
+  <rect x="335" y="742" width="120" height="32" rx="16" fill="#ea4335"/>
+  <text x="395" y="763" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">Gmail SMTP</text>
+
+  <rect x="475" y="742" width="100" height="32" rx="16" fill="#e9a825"/>
+  <text x="525" y="763" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">Unsplash</text>
+
+  <rect x="595" y="742" width="170" height="32" rx="16" fill="#e8f0fe" stroke="#4285f4" stroke-width="1.5"/>
+  <text x="680" y="763" text-anchor="middle" font-size="11" font-weight="600" fill="#1a73e8">Google Indexing API</text>
+
+  <!-- ── FastAPI 대시보드 (오른쪽) ── -->
+  <rect x="810" y="56" width="266" height="170" rx="8" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="943" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">FastAPI 관리 대시보드</text>
+
+  <rect x="826" y="88" width="234" height="36" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="943" y="104" text-anchor="middle" font-size="11" font-weight="600" fill="#1d4ed8">/pipelines</text>
+  <text x="943" y="118" text-anchor="middle" font-size="10" fill="#6b7280">파이프라인 수동 실행 대시보드</text>
+
+  <rect x="826" y="132" width="234" height="36" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="943" y="148" text-anchor="middle" font-size="11" font-weight="600" fill="#7c3aed">/traces</text>
+  <text x="943" y="162" text-anchor="middle" font-size="10" fill="#6b7280">AI 호출 트레이싱 · 품질 모니터링</text>
+
+  <rect x="826" y="176" width="234" height="36" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5"/>
+  <text x="943" y="192" text-anchor="middle" font-size="11" font-weight="600" fill="#374151">/archive</text>
+  <text x="943" y="206" text-anchor="middle" font-size="10" fill="#6b7280">브리핑 아카이브 조회</text>
+
+  <!-- Arrow defs -->
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+</svg>

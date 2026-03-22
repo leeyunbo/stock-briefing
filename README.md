@@ -39,7 +39,7 @@
 
 ## 아키텍처
 
-![시스템 아키텍처](docs/architecture.drawio.png)
+![시스템 아키텍처](docs/architecture.svg)
 
 상세 설명은 **[docs/architecture.md](docs/architecture.md)** 참고.
 
