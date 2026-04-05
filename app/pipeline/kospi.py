@@ -19,6 +19,7 @@ from app.collector.snapshot import (
 from app.core.models import IndexSnapshot
 from app.core.models import BriefingType
 from app.pipeline.base import BriefingResult, PipelineContext, deliver, run_steps
+from app.pipeline.review import review_content
 from app.summarizer import generate_briefing
 from app.tracing import generate_run_id
 
@@ -190,6 +191,7 @@ async def summarize_kospi(ctx: KospiContext) -> None:
 KOSPI_STEPS = [
     collect_kospi_data,
     summarize_kospi,
+    review_content,
     deliver,
 ]
 

@@ -17,6 +17,7 @@ from app.collector.research_models import CandidateScreenData, MacroIndicators, 
 from app.collector.stock_research import screen_candidates
 from app.core.models import BriefingType
 from app.pipeline.base import BriefingResult, PipelineContext, deliver, run_steps
+from app.pipeline.review import review_content
 from app.prompts.issue_dive import generate_issue_dive_article, pick_top_issue
 from app.tracing import generate_run_id
 
@@ -190,6 +191,7 @@ ISSUE_DIVE_STEPS = [
     research_issue,
     generate_article,
     render_charts,
+    review_content,
     deliver,
 ]
 
@@ -211,7 +213,7 @@ async def run_issue_dive_pipeline(email_to: list[str] | None = [], topic: dict |
         ctx["issue"] = topic
         ctx["scan"] = MarketScanData()
         ctx["macro"] = MacroIndicators()
-        steps = [research_issue, generate_article, render_charts, deliver]
+        steps = [research_issue, generate_article, render_charts, review_content, deliver]
     else:
         steps = ISSUE_DIVE_STEPS
     await run_steps(steps, ctx)

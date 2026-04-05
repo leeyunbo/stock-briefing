@@ -21,6 +21,7 @@ from app.collector.research_models import MacroIndicators, MarketScanData, Stock
 from app.collector.stock_research import fetch_stock_research
 from app.core.models import BriefingType
 from app.pipeline.base import BriefingResult, PipelineContext, deliver, run_steps
+from app.pipeline.review import review_content
 from app.tracing import generate_run_id
 
 logger = logging.getLogger(__name__)
@@ -316,6 +317,7 @@ STOCK_DEEP_DIVE_STEPS = [
     collect_stock_data,
     generate_article,
     render_charts,
+    review_content,
     deliver,
 ]
 
@@ -325,6 +327,7 @@ STOCK_DEEP_DIVE_HTML_STEPS = [
     collect_stock_data,
     generate_article,
     render_charts,
+    review_content,
     save_html,
 ]
 

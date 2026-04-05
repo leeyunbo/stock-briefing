@@ -15,6 +15,7 @@ from app.collector.snapshot import save_nasdaq_snapshot, fetch_index_history
 from app.core.models import IndexSnapshot
 from app.core.models import BriefingType
 from app.pipeline.base import PipelineContext, deliver, run_steps
+from app.pipeline.review import review_content
 from app.tracing import generate_run_id
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ async def summarize_nasdaq(ctx: NasdaqContext) -> None:
 NASDAQ_STEPS = [
     collect_nasdaq_data,
     summarize_nasdaq,
+    review_content,
     deliver,
 ]
 

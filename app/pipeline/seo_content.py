@@ -12,6 +12,7 @@ from typing import Any
 
 from app.core.models import BriefingType, SeoTopic
 from app.pipeline.base import BriefingResult, PipelineContext, deliver, run_steps
+from app.pipeline.review import review_content
 from app.tracing import generate_run_id
 
 logger = logging.getLogger(__name__)
@@ -215,6 +216,7 @@ SEO_CONTENT_STEPS = [
     dedup_check,
     generate_article,
     inject_faq_schema,
+    review_content,
     deliver,
     post_publish_hooks,
 ]
