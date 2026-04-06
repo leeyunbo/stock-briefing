@@ -2,12 +2,14 @@
 
 import json
 import logging
+import os
 import re
-
-import anthropic
+import subprocess
+import time
 
 from app.core.config import get_settings
 from app.summarizer import strip_code_block
+from app.tracing import _save_trace_sync
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +20,7 @@ REVIEW_SYSTEM_PROMPT = """당신은 금융 콘텐츠 에디터 겸 팩트체커�
 
 ### 1. 팩트 오류 검증
 - 본문에서 핵심 수치(주가, 등락률, 시가총액, PER 등), 날짜, 이벤트를 추출하세요.
-- web_search 도구로 각 수치/사실을 검증하세요.
+- 반드시 웹 검색으로 각 수치/사실을 검증하세요. 검색 없이 넘어가지 마세요.
 - 틀린 부분은 올바른 수치로 수정하세요.
 - 미발표 실적을 발표된 것처럼 쓴 경우, "발표 예정" 또는 "컨센서스 추정치"로 수정하세요.
 - 과거 이벤트를 "예정"이라고 쓴 경우 수정하세요.
@@ -48,31 +50,35 @@ REVIEW_SYSTEM_PROMPT = """당신은 금융 콘텐츠 에디터 겸 팩트체커�
 
 def run_review(html: str, run_id: str = "", pipeline: str = "") -> str:
     """기사 HTML을 검수하고 수정된 HTML을 반환한다."""
-    import time
-    from app.tracing import _save_trace_sync
-
-    s = get_settings()
-    client = anthropic.Anthropic(api_key=s.anthropic_api_key)
-
     logger.info("[검수] 시작: pipeline=%s, run_id=%s", pipeline, run_id)
 
-    user_prompt = f"다음 기사를 검수해주세요:\n\n{html}"
+    prompt = f"{REVIEW_SYSTEM_PROMPT}\n\n다음 기사를 검수해주세요:\n\n{html}"
+
     start = time.monotonic()
     input_tokens = None
     output_tokens = None
     success = True
     error_message = None
+    reviewed_html = ""
 
     try:
-        response = client.messages.create(
-            model=s.claude_model,
-            max_tokens=16000,
-            system=REVIEW_SYSTEM_PROMPT,
-            tools=[{"type": "web_search_20250305", "name": "web_search"}],
-            messages=[{"role": "user", "content": user_prompt}],
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+        env.setdefault("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")
+        result = subprocess.run(
+            ["claude", "-p", prompt, "--output-format", "json", "--allowedTools", "mcp__claude_ai__web_search,WebSearch,web_search"],
+            capture_output=True,
+            text=True,
+            timeout=600,
+            env=env,
         )
-        input_tokens = response.usage.input_tokens
-        output_tokens = response.usage.output_tokens
+        if result.returncode != 0:
+            raise RuntimeError(f"claude CLI 에러: {result.stderr}")
+
+        data = json.loads(result.stdout)
+        usage = data.get("usage", {})
+        input_tokens = usage.get("input_tokens")
+        output_tokens = usage.get("output_tokens")
+        reviewed_html = data.get("result", "")
     except Exception as e:
         success = False
         error_message = str(e)[:1000]
@@ -83,10 +89,10 @@ def run_review(html: str, run_id: str = "", pipeline: str = "") -> str:
             run_id=run_id,
             pipeline=pipeline,
             stage="review",
-            provider_name="claude",
-            model_name=s.claude_model,
+            provider_name="claude-cli",
+            model_name="claude-cli",
             system_prompt=REVIEW_SYSTEM_PROMPT,
-            user_prompt=user_prompt[:5000],
+            user_prompt=f"기사 검수 ({len(html)}자)",
             response="",
             latency_ms=latency_ms,
             input_tokens=input_tokens,
@@ -95,12 +101,6 @@ def run_review(html: str, run_id: str = "", pipeline: str = "") -> str:
             error_message=error_message,
         )
 
-    # 응답에서 마지막 text block만 추출 (중간 분석 코멘트 제외)
-    text_blocks = [block.text for block in response.content if block.type == "text"]
-    if not text_blocks:
-        logger.warning("[검수] 텍스트 블록 없음 — 원본 유지")
-        return html
-    reviewed_html = text_blocks[-1]
     reviewed_html = strip_code_block(reviewed_html)
 
     # HTML 태그 시작 전의 메타 코멘트 제거
