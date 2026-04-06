@@ -36,6 +36,25 @@ PIPELINE_LABELS = {
 }
 
 
+_TOKEN_COSTS: dict[str, tuple[float, float]] = {
+    # model_prefix: (input_cost_per_mtok, output_cost_per_mtok)
+    "claude-sonnet": (3.0, 15.0),
+    "claude-opus": (15.0, 75.0),
+    "claude-haiku": (0.25, 1.25),
+    "gemini-2.0-flash": (0.10, 0.40),
+    "gemini-2.5-flash": (0.15, 0.60),
+    "gemini-2.5-pro": (1.25, 10.0),
+}
+
+
+def _estimate_cost(model_name: str, input_tokens: int, output_tokens: int) -> float:
+    """모델명과 토큰 수로 예상 비용(USD)을 계산한다."""
+    for prefix, (input_cost, output_cost) in _TOKEN_COSTS.items():
+        if prefix in (model_name or ""):
+            return (input_tokens * input_cost + output_tokens * output_cost) / 1_000_000
+    return 0.0
+
+
 @router.get("", response_class=HTMLResponse)
 async def traces_list(
     request: Request,
@@ -54,6 +73,31 @@ async def traces_list(
         filters.append(AiTrace.created_at >= datetime.fromisoformat(date_from))
     if date_to:
         filters.append(AiTrace.created_at < datetime.fromisoformat(date_to) + timedelta(days=1))
+
+    # 토큰 합계 (필터 적용)
+    token_query = select(
+        func.coalesce(func.sum(AiTrace.input_tokens), 0).label("total_input"),
+        func.coalesce(func.sum(AiTrace.output_tokens), 0).label("total_output"),
+    ).where(AiTrace.run_id != "")
+    if filters:
+        token_query = token_query.where(*filters)
+    token_result = await db.execute(token_query)
+    token_row = token_result.one()
+    total_input_tokens = token_row.total_input
+    total_output_tokens = token_row.total_output
+
+    # 모델별 비용 계산
+    cost_query = select(
+        AiTrace.model_name,
+        func.coalesce(func.sum(AiTrace.input_tokens), 0).label("input_sum"),
+        func.coalesce(func.sum(AiTrace.output_tokens), 0).label("output_sum"),
+    ).where(AiTrace.run_id != "").group_by(AiTrace.model_name)
+    if filters:
+        cost_query = cost_query.where(*filters)
+    cost_result = await db.execute(cost_query)
+    total_cost = sum(
+        _estimate_cost(r.model_name, r.input_sum, r.output_sum) for r in cost_result.all()
+    )
 
     # run_id 기준 그룹 집계
     group_query = (
@@ -101,6 +145,9 @@ async def traces_list(
         "page": page,
         "total_pages": total_pages,
         "total": total,
+        "total_input_tokens": total_input_tokens,
+        "total_output_tokens": total_output_tokens,
+        "total_cost": total_cost,
     })
 
 
@@ -124,6 +171,11 @@ async def run_detail(
     pipeline = traces[0].pipeline
     total_latency = sum(t.latency_ms for t in traces)
     all_success = all(t.success for t in traces)
+    total_input = sum(t.input_tokens or 0 for t in traces)
+    total_output = sum(t.output_tokens or 0 for t in traces)
+    total_cost = sum(
+        _estimate_cost(t.model_name, t.input_tokens or 0, t.output_tokens or 0) for t in traces
+    )
 
     return templates.TemplateResponse("trace_detail.html", {
         "request": request,
@@ -133,4 +185,7 @@ async def run_detail(
         "pipeline_label": PIPELINE_LABELS.get(pipeline, pipeline),
         "total_latency": total_latency,
         "all_success": all_success,
+        "total_input": total_input,
+        "total_output": total_output,
+        "total_cost": total_cost,
     })

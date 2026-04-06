@@ -48,18 +48,52 @@ REVIEW_SYSTEM_PROMPT = """당신은 금융 콘텐츠 에디터 겸 팩트체커�
 
 def run_review(html: str, run_id: str = "", pipeline: str = "") -> str:
     """기사 HTML을 검수하고 수정된 HTML을 반환한다."""
+    import time
+    from app.tracing import _save_trace_sync
+
     s = get_settings()
     client = anthropic.Anthropic(api_key=s.anthropic_api_key)
 
     logger.info("[검수] 시작: pipeline=%s, run_id=%s", pipeline, run_id)
 
-    response = client.messages.create(
-        model=s.claude_model,
-        max_tokens=16000,
-        system=REVIEW_SYSTEM_PROMPT,
-        tools=[{"type": "web_search_20250305", "name": "web_search"}],
-        messages=[{"role": "user", "content": f"다음 기사를 검수해주세요:\n\n{html}"}],
-    )
+    user_prompt = f"다음 기사를 검수해주세요:\n\n{html}"
+    start = time.monotonic()
+    input_tokens = None
+    output_tokens = None
+    success = True
+    error_message = None
+
+    try:
+        response = client.messages.create(
+            model=s.claude_model,
+            max_tokens=16000,
+            system=REVIEW_SYSTEM_PROMPT,
+            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        input_tokens = response.usage.input_tokens
+        output_tokens = response.usage.output_tokens
+    except Exception as e:
+        success = False
+        error_message = str(e)[:1000]
+        raise
+    finally:
+        latency_ms = int((time.monotonic() - start) * 1000)
+        _save_trace_sync(
+            run_id=run_id,
+            pipeline=pipeline,
+            stage="review",
+            provider_name="claude",
+            model_name=s.claude_model,
+            system_prompt=REVIEW_SYSTEM_PROMPT,
+            user_prompt=user_prompt[:5000],
+            response="",
+            latency_ms=latency_ms,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            success=success,
+            error_message=error_message,
+        )
 
     # 응답에서 마지막 text block만 추출 (중간 분석 코멘트 제외)
     text_blocks = [block.text for block in response.content if block.type == "text"]

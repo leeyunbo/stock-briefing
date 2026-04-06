@@ -288,6 +288,14 @@
                     <span class="run-summary-value">{{ (traces[0].created_at|kst).strftime('%Y-%m-%d %H:%M:%S') }}</span>
                 </div>
                 <div class="run-summary-item">
+                    <span class="run-summary-label">토큰</span>
+                    <span class="run-summary-value">{{ "{:,}".format(total_input) }} → {{ "{:,}".format(total_output) }}</span>
+                </div>
+                <div class="run-summary-item">
+                    <span class="run-summary-label">예상 비용</span>
+                    <span class="run-summary-value" style="color:#3182f6">${{ "%.4f"|format(total_cost) }}</span>
+                </div>
+                <div class="run-summary-item">
                     <span class="run-summary-label">Run ID</span>
                     <span class="run-summary-value" style="font-size:13px; color:#8b95a1">{{ run_id }}</span>
                 </div>

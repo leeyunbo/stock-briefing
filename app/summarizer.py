@@ -89,12 +89,13 @@ class ClaudeCliProvider:
 
     def __init__(self, timeout: int = 300):
         self.timeout = timeout
+        self.last_usage: dict | None = None
 
     def call(self, system_prompt: str, user_prompt: str) -> str:
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
         env.setdefault("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")
         result = subprocess.run(
-            ["claude", "-p", f"{system_prompt}\n\n{user_prompt}", "--output-format", "text"],
+            ["claude", "-p", f"{system_prompt}\n\n{user_prompt}", "--output-format", "json"],
             capture_output=True,
             text=True,
             timeout=self.timeout,
@@ -102,7 +103,13 @@ class ClaudeCliProvider:
         )
         if result.returncode != 0:
             raise RuntimeError(f"claude CLI 에러: {result.stderr}")
-        return result.stdout
+        data = json.loads(result.stdout)
+        usage = data.get("usage", {})
+        self.last_usage = {
+            "input_tokens": usage.get("input_tokens"),
+            "output_tokens": usage.get("output_tokens"),
+        }
+        return data.get("result", "")
 
 
 def get_provider(pipeline: str = "", stage: str = "", run_id: str = "") -> AiProvider:

@@ -246,6 +246,22 @@
             <button type="submit">필터</button>
         </form>
 
+        <!-- Token Summary -->
+        <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:160px;background:#fff;border:1px solid #e5e8eb;border-radius:14px;padding:18px 22px;">
+                <div style="font-size:12px;color:#8b95a1;font-weight:600;margin-bottom:6px;">입력 토큰</div>
+                <div style="font-size:20px;font-weight:800;color:#191f28;letter-spacing:-0.5px;">{{ "{:,}".format(total_input_tokens) }}</div>
+            </div>
+            <div style="flex:1;min-width:160px;background:#fff;border:1px solid #e5e8eb;border-radius:14px;padding:18px 22px;">
+                <div style="font-size:12px;color:#8b95a1;font-weight:600;margin-bottom:6px;">출력 토큰</div>
+                <div style="font-size:20px;font-weight:800;color:#191f28;letter-spacing:-0.5px;">{{ "{:,}".format(total_output_tokens) }}</div>
+            </div>
+            <div style="flex:1;min-width:160px;background:#fff;border:1px solid #e5e8eb;border-radius:14px;padding:18px 22px;">
+                <div style="font-size:12px;color:#8b95a1;font-weight:600;margin-bottom:6px;">예상 비용</div>
+                <div style="font-size:20px;font-weight:800;color:#3182f6;letter-spacing:-0.5px;">${{ "%.2f"|format(total_cost) }}</div>
+            </div>
+        </div>
+
         {% if runs %}
         {% for run in runs %}
         <a class="run-card" href="/traces/run/{{ run.run_id }}" style="animation-delay: {{ loop.index0 * 0.04 }}s">
