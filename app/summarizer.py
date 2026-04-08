@@ -95,7 +95,7 @@ class ClaudeCliProvider:
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
         env.setdefault("PATH", "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")
         result = subprocess.run(
-            ["claude", "-p", f"{system_prompt}\n\n{user_prompt}", "--output-format", "json"],
+            ["claude", "-p", f"{system_prompt}\n\n{user_prompt}", "--output-format", "json", "--allowedTools", "WebSearch,web_search"],
             capture_output=True,
             text=True,
             timeout=self.timeout,
