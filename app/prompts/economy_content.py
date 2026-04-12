@@ -76,10 +76,70 @@ _INVEST_SYSTEM = _BASE_TONE + """
 5. ❓ 자주 묻는 질문
 """
 
+_TAX_SYSTEM = _BASE_TONE + """
+세금/절세 개념 설명 글을 작성합니다.
+
+섹션 구성:
+1. 💸 {keyword}가 뭔가요? — 핵심 개념을 아주 쉽게 정의
+2. 🧾 언제, 얼마나 내야 하나요? — 구체적인 세율과 기준
+3. ✂️ 이렇게 하면 줄일 수 있어요 — 실전 절세 방법
+4. ⚠️ 실수하기 쉬운 포인트 — 놓치면 손해 보는 것들
+5. ❓ 자주 묻는 질문
+"""
+
+_FINANCE_SYSTEM = _BASE_TONE + """
+금융상품/보험/대출 개념 설명 글을 작성합니다.
+
+섹션 구성:
+1. 🏦 {keyword}가 뭔가요? — 핵심 개념을 아주 쉽게 정의
+2. 💡 어떻게 활용하나요? — 실생활에서의 쓰임새와 선택 기준
+3. 📊 다른 상품과 비교하면? — 장단점 비교
+4. 🔰 이런 분께 추천해요 — 상황별 활용 가이드
+5. ❓ 자주 묻는 질문
+"""
+
+_GLOBAL_SYSTEM = _BASE_TONE + """
+글로벌 경제/국제 금융 개념 설명 글을 작성합니다.
+
+섹션 구성:
+1. 🌍 {keyword}가 뭔가요? — 핵심 개념을 아주 쉽게 정의
+2. 🔗 우리 생활에 어떤 영향을 주나요? — 환율, 물가, 금리와의 연결고리
+3. 📰 최근 동향은? — 현재 상황과 주요 이슈
+4. 💬 투자에 어떻게 활용하나요? — 실전 활용 포인트
+5. ❓ 자주 묻는 질문
+"""
+
+_INDUSTRY_SYSTEM = _BASE_TONE + """
+기업/산업/비즈니스 트렌드 설명 글을 작성합니다.
+
+섹션 구성:
+1. 🏭 {keyword}가 뭔가요? — 핵심 개념을 아주 쉽게 정의
+2. 📈 왜 주목받고 있나요? — 최근 트렌드와 배경
+3. 🔍 주요 기업과 사례 — 대표 기업과 실제 사례
+4. 💰 투자 관점에서 보면? — 투자 기회와 리스크
+5. ❓ 자주 묻는 질문
+"""
+
+_CRYPTO_SYSTEM = _BASE_TONE + """
+암호화폐/블록체인 개념 설명 글을 작성합니다.
+
+섹션 구성:
+1. 🪙 {keyword}가 뭔가요? — 핵심 개념을 아주 쉽게 정의
+2. ⚙️ 어떻게 작동하나요? — 기술적 원리를 쉽게 설명
+3. 📊 시장에서의 의미 — 가격/시장에 미치는 영향
+4. ⚠️ 리스크와 주의사항 — 투자 전 반드시 알아야 할 것
+5. ❓ 자주 묻는 질문
+"""
+
 _SYSTEM_PROMPTS: dict[str, str] = {
     "economy_realestate": _REALESTATE_SYSTEM,
     "economy_concept": _CONCEPT_SYSTEM,
     "economy_invest": _INVEST_SYSTEM,
+    "economy_tax": _TAX_SYSTEM,
+    "economy_finance": _FINANCE_SYSTEM,
+    "economy_global": _GLOBAL_SYSTEM,
+    "economy_industry": _INDUSTRY_SYSTEM,
+    "economy_crypto": _CRYPTO_SYSTEM,
 }
 
 

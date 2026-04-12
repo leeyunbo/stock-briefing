@@ -93,7 +93,7 @@ def run_review(html: str, run_id: str = "", pipeline: str = "") -> str:
             model_name="claude-cli",
             system_prompt=REVIEW_SYSTEM_PROMPT,
             user_prompt=f"기사 검수 ({len(html)}자)",
-            response="",
+            response=reviewed_html,
             latency_ms=latency_ms,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
