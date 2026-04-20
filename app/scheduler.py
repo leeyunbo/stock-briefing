@@ -49,20 +49,20 @@ def start_scheduler():
         kwargs={"email_to": []},
     )
 
-    # 경제 상식: 매일 3회 (07시 출근, 11시 점심, 17시 퇴근)
+    # 경제 상식: 매일 09시
     scheduler.add_job(
         run_economy_content_pipeline,
         trigger="cron",
-        hour="7,11,17",
+        hour=9,
         minute=0,
         id="economy_content",
     )
 
-    # 이슈 딥다이브: 매일 3회 (10시, 15시, 21시)
+    # 이슈 딥다이브: 매일 18시
     scheduler.add_job(
         run_issue_dive_pipeline,
         trigger="cron",
-        hour="10,15,21",
+        hour=18,
         minute=0,
         id="issue_dive",
         kwargs={"email_to": []},
@@ -154,5 +154,5 @@ def start_scheduler():
     )
 
     scheduler.start()
-    logger.info("스케줄러 시작: 한국 월~금 20시, 나스닥 화~토 8시, 포트폴리오 화~토 8:30, 경제상식 매일 7/11/17시, 이슈딥다이브 매일 10/15/21시, 종목딥다이브 매일 11시, 트렌드수집 매일 7시, SEO콘텐츠 매일 14시, 부동산 월 7시, GSC수집 월 6시, 다이제스트 매일 22시, 코인트레이딩 15분, 코인AI전략 1시간")
+    logger.info("스케줄러 시작: 한국 월~금 20시, 나스닥 화~토 8시, 포트폴리오 화~토 8:30, 경제상식 매일 9시, 이슈딥다이브 매일 18시, 종목딥다이브 매일 11시, 트렌드수집 매일 7시, SEO콘텐츠 매일 14시, 부동산 월 7시, GSC수집 월 6시, 다이제스트 매일 22시, 코인트레이딩 15분, 코인AI전략 1시간")
     return scheduler
