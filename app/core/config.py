@@ -77,6 +77,10 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite+aiosqlite:///briefing.db"
 
+    # Slack (개인 아침 브리핑 — bot token)
+    slack_bot_token: str = ""
+    slack_channel_id: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

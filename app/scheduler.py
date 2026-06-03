@@ -14,6 +14,7 @@ from app.pipeline.crypto_trading import run_trading_pipeline, run_ai_strategy_pi
 from app.pipeline.seo_content import run_seo_content_pipeline
 from app.pipeline.gsc_collect import run_gsc_collection
 from app.pipeline.trend_collect import run_trend_collection
+from app.pipeline.morning_briefing import run_morning_briefing_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,15 @@ def start_scheduler():
         day_of_week="tue-sat",
         id="nasdaq_briefing",
         kwargs={"email_to": []},
+    )
+
+    # 개인 아침 Slack 브리핑: 매일 오전 8시 30분 (나스닥 마감 반영 후)
+    scheduler.add_job(
+        run_morning_briefing_pipeline,
+        trigger="cron",
+        hour=8,
+        minute=30,
+        id="morning_briefing",
     )
 
     # 경제 상식: 매일 09시
