@@ -14,9 +14,15 @@ from app.summarizer import get_provider, strip_code_block
 logger = logging.getLogger(__name__)
 
 
-OVERVIEW_SYSTEM_PROMPT = """당신은 중장기 투자자(나) 한 명을 위한 아침 브리핑 애널리스트예요.
+OVERVIEW_SYSTEM_PROMPT = """당신은 중장기 투자자(나) 한 명을 위한 아침 브리핑 작성자예요.
 일일 등락에 휘둘리지 않고 큰 흐름·밸류·실적 관점에서 '오늘 신경 쓸 것'만 짚어요.
 한눈에 스캔되는 짧은 대시보드. 주절거림·문장 나열 금지.
+
+[말투 — 토스(toss) 스타일: 일반인도 쉽게]
+- 어려운 금융 용어는 괄호로 쉽게 풀어줘요. 예: thesis(이 종목을 산 이유), PER(주가가 이익의 몇 배인지), HBM(AI에 쓰는 고성능 메모리).
+- 따뜻하고 대화하듯 "~해요"체. 전문가인 척·딱딱한 표현 금지.
+- 숫자엔 꼭 맥락을 붙여요. 예: "3% 빠졌어요 — 한 달 만에 가장 큰 하락이에요".
+- 쉽게 쓰되 핵심은 빠뜨리지 마세요. 쉽다 ≠ 얕다.
 
 [출력 규칙]
 - Slack mrkdwn. 굵게는 *별표 한 개* (** 두 개·## 헤더 절대 금지).
@@ -24,17 +30,19 @@ OVERVIEW_SYSTEM_PROMPT = """당신은 중장기 투자자(나) 한 명을 위한
 - 등락은 🔺/🔻/➖ + 부호 숫자. 종목은 한 줄에 2~3개씩.
 - 섹션별 해석은 → 로 시작하는 짧은 한 줄만. 데이터에 있는 사실만.
 
+[자료 활용]
+- 시세·밸류 숫자는 '구조화 데이터'에서, 인사이트·동향은 '웹 리서치'에서 가져와 *합성*하세요.
+- 웹 리서치에서 가져온 사실엔 출처(매체/기관)를 괄호로 짧게 인용. 웹 리서치에 없는 내용을 지어내지 마세요.
+
 [섹션 — 이 순서대로, 각 섹션 사이에 === 줄]
-🎯 *레짐* : 금리·달러·변동성으로 본 시장 국면 한 줄 (일일 지수 등락 말고 큰 그림).
+🎯 *오늘의 큰 그림* : 금리·달러·변동성 + 웹 리서치 거시 요인으로 본 시장 국면 한 줄 (일일 등락 말고 큰 그림).
 ===
-🩺 *내 레이더* : 보유·관심 종목별 한 줄. *52주 고점 대비 위치를 꼭 표기*.
-  thesis(투자 논거)에 영향 줄 변화 보이면 → 코멘트, 없으면 '특이사항 없음'.
+📅 *이벤트 캘린더* : 이번 주 예정된 실적 발표·경제지표·정책 일정 (웹 리서치 기반). 내 종목/테마 관련 우선. 없으면 생략.
 ===
-📰 *주요 뉴스* : 시장·레이더 종목 핵심 뉴스 3~4개. 각 한 줄로 *무슨 일* + → *왜 중요한지(중장기 의미)*.
-  헤드라인 그대로 복붙 금지, 내 종목/테마에 닿는 것 우선. 없으면 이 섹션 생략.
+🩺 *내 레이더* : 보유·관심 종목별 한 줄. *52주 고점 대비 위치 표기* + 웹 리서치의 애널리스트 뷰·이벤트로 thesis 코멘트(출처).
+  영향 줄 변화 없으면 '특이사항 없음'.
 ===
-💰 *발굴 후보* : 52주 고점 대비 많이 눌린 우량주(밸류 기회) 2~3개.
-  왜 눌렸는지 / 중장기 매력 한 줄씩. (단기 급등주 아님, 줍줍 관점)
+📰 *핵심 인사이트* : 웹 리서치에서 건진 *진짜 중요한* 인사이트 3~4개. 각 한 줄 *무슨 일* + → *중장기 의미*(출처). 헤드라인 복붙 금지.
 ===
 🧭 *관전 포인트* : 중장기 체크 2~3개 불릿 (실적 시즌·금리 이벤트·밸류 등).
 """
@@ -44,11 +52,13 @@ SPOTLIGHT_SYSTEM_PROMPT = """당신은 증권 리서치 애널리스트예요. �
 
 [출력 규칙]
 - Slack mrkdwn. 굵게 *별표 한 개* (** ·## 금지). 데이터에 있는 사실만, 없는 수치 금지.
+- 재무 숫자는 '재무 데이터'에서, 동향·애널리스트 뷰는 '웹 리서치'에서. 웹 리서치 사실엔 출처(매체) 짧게 인용.
 - 첫 줄 = 의견 뱃지: 🟢 *적극매수* / 🔵 *분할매수* / ⚪ *관망* / 🔴 *비중축소* 중 하나 + ` · 중장기`.
-- 그 아래 불릿 3개, 각 정확히 한 줄:
-  • *왜 주목* — 사업·해자·성장 동력 (단기 등락 말고 구조적 이유)
-  • *밸류* — PER 등 밸류에이션 + 52주 고점 대비 위치, 싼지 비싼지
+- 그 아래 불릿 4개, 각 한 줄:
+  • *왜 주목* — 사업·해자·성장 동력 (구조적 이유)
+  • *밸류* — PER 등 + 52주 고점 대비 위치, 싼지 비싼지
   • *실적* — 매출·이익 추세 + 다가오는 실적 체크포인트
+  • *시장 시각* — 웹 리서치의 애널리스트 의견·목표주가·최근 이슈(출처)
 - 마지막 줄: _개인 참고용, 투자권유 아님_
 """
 
@@ -115,49 +125,53 @@ def _overview_user(scan: ThemeScanData) -> str:
         for s in stocks:
             parts.append(f"- {s.name}({s.ticker}): {s.close} ({s.change_pct:+.2f}%) | 고점대비 -{s.pct_off_high}%")
 
-    parts.append("\n## 발굴 후보 (52주 고점 대비 눌림 상위, 레이더 제외)")
-    for s in scan.value_picks:
-        parts.append(
-            f"- {s.name}({s.ticker}): {s.close} ({s.change_pct:+.2f}%) "
-            f"| 고점대비 -{s.pct_off_high}% | 저점대비 +{s.pct_above_low}%"
-        )
-
     if scan.market_news:
-        parts.append("\n## 시장 주요 뉴스")
+        parts.append("\n## 시장 주요 뉴스 (네이버)")
         for n in scan.market_news[:5]:
             parts.append(f"- {n.title} | {n.description[:80]}")
-
-    radar_lines = []
-    for name, articles in scan.radar_news.items():
-        for n in articles[:2]:
-            radar_lines.append(f"- [{name}] {n.title}")
-    if radar_lines:
-        parts.append("\n## 레이더 종목 관련 뉴스")
-        parts.extend(radar_lines)
 
     return "\n".join(parts)
 
 
-def _spotlight_user(sp: SpotlightData) -> str:
+def _research_block(research: dict | None, scan: ThemeScanData) -> str:
+    """웹 리서치 결과를 프롬프트용 텍스트로 변환한다."""
+    if not research:
+        return ""
+    parts = ["\n\n========== 웹 리서치 (인사이트 소스) =========="]
+    if research.get("market"):
+        parts.append("\n### [웹] 거시·시장·이벤트 캘린더\n" + research["market"])
+    if research.get("themes"):
+        parts.append("\n### [웹] 테마 동향\n" + research["themes"])
+    stocks = research.get("stocks") or {}
+    name_by_ticker = {s.ticker: s.name for s in scan.watchlist}
+    for ticker, text in stocks.items():
+        if text:
+            parts.append(f"\n### [웹] {name_by_ticker.get(ticker, ticker)}({ticker})\n{text}")
+    return "\n".join(parts)
+
+
+def _spotlight_user(sp: SpotlightData, research_text: str = "") -> str:
     snapshot = json.dumps(_tech_snapshot(sp.indicators), ensure_ascii=False, indent=2)
     financials = json.dumps(sp.financials, ensure_ascii=False, default=str)[:6000]
+    web = f"\n\n## 웹 리서치 (애널리스트 뷰·최근 이슈)\n{research_text}" if research_text else ""
     return (
         f"# 종목: {sp.name} ({sp.ticker}) / 시장: {sp.market}\n\n"
         f"## 기술적 지표\n{snapshot}\n\n"
-        f"## 재무 데이터\n{financials}"
+        f"## 재무 데이터\n{financials}{web}"
     )
 
 
-def build_market_overview(scan: ThemeScanData, run_id: str = "") -> str:
-    """매크로 + 테마 개요를 Slack mrkdwn으로 생성한다 (동기)."""
+def build_market_overview(scan: ThemeScanData, research: dict | None = None, run_id: str = "") -> str:
+    """매크로 + 테마 개요 + 웹 리서치를 Slack mrkdwn으로 합성한다 (동기)."""
     provider = get_provider(pipeline="morning_briefing", stage="overview", run_id=run_id)
-    raw = provider.call(OVERVIEW_SYSTEM_PROMPT, _overview_user(scan))
+    user = _overview_user(scan) + _research_block(research, scan)
+    raw = provider.call(OVERVIEW_SYSTEM_PROMPT, user)
     return _slackify(strip_code_block(raw))
 
 
-def build_spotlight_analysis(sp: SpotlightData, run_id: str = "") -> str:
+def build_spotlight_analysis(sp: SpotlightData, research_text: str = "", run_id: str = "") -> str:
     """스포트라이트 종목 분석 + 매수 의견을 Slack mrkdwn으로 생성한다 (동기)."""
     provider = get_provider(pipeline="morning_briefing", stage="spotlight", run_id=run_id)
-    raw = provider.call(SPOTLIGHT_SYSTEM_PROMPT, _spotlight_user(sp))
+    raw = provider.call(SPOTLIGHT_SYSTEM_PROMPT, _spotlight_user(sp, research_text))
     header = f"💡 *오늘의 종목 — {sp.name} ({sp.ticker})*\n"
     return header + _slackify(strip_code_block(raw))
