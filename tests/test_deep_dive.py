@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from app.collector.naver_research import ResearchReport
+import app.prompts.deep_dive as dd_mod
 from app.prompts.deep_dive import (
     DeepDive,
     DeepDiveTopic,
@@ -14,6 +15,11 @@ from app.prompts.deep_dive import (
     select_topics,
     write_topic,
 )
+
+
+@pytest.fixture(autouse=True)
+def _no_retry_sleep(monkeypatch):
+    monkeypatch.setattr(dd_mod, "_RETRY_SLEEP", 0)
 
 
 def _report(i: int, category: str = "시황") -> ResearchReport:
@@ -91,6 +97,13 @@ def test_select_topics_bad_json_returns_empty():
     fp = FakeProvider(["이건 JSON이 아니에요"])
     with patch("app.prompts.deep_dive.get_provider", return_value=fp):
         assert select_topics([_report(0)], {}) == []
+
+
+def test_select_topics_retries_transient_error_then_succeeds():
+    fp = FakeProvider([RuntimeError("claude CLI 에러: "), "", SELECT_JSON])
+    with patch("app.prompts.deep_dive.get_provider", return_value=fp):
+        sel = select_topics([_report(i) for i in range(3)], {"market": "m"})
+    assert len(sel) == 3 and len(fp.calls) == 3
 
 
 # ── write_topic ──

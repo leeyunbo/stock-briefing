@@ -12,6 +12,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from asyncio import to_thread
 from dataclasses import dataclass, field
 
@@ -28,6 +29,8 @@ MAX_TOPICS = 3
 ALLOWED_TAGS = {"p", "strong", "em", "ul", "li"}
 _EXCERPT_FOR_SELECT = 300   # 선정 단계엔 리포트 발췌 앞부분만
 _RESEARCH_FOR_WRITE = 2500  # 작성 단계 웹 리서치 상한(키당)
+_TRIES = 3
+_RETRY_SLEEP = 5  # 초 × 시도 횟수 (CLI 한도·빈 응답 같은 일시 실패 대비)
 
 
 @dataclass
@@ -86,6 +89,23 @@ SUMMARY_SYSTEM = """아래 딥다이브 주제들을 읽고 '오늘 이것만 �
 
 # ── 유틸 ──
 
+def _call(provider, system: str, user: str, label: str) -> str:
+    """프로바이더 호출 + 일시 실패(빈 stderr·한도·빈 응답) 백오프 재시도."""
+    last: Exception | None = None
+    for i in range(_TRIES):
+        try:
+            out = provider.call(system, user)
+            if out and out.strip():
+                return out
+            last = RuntimeError("빈 응답")
+        except Exception as e:
+            last = e
+        logger.warning("딥다이브 %s 시도 %d/%d 실패: %s", label, i + 1, _TRIES, last)
+        if i < _TRIES - 1:
+            time.sleep(_RETRY_SLEEP * (i + 1))
+    raise last or RuntimeError("호출 실패")
+
+
 def sanitize_html(html: str) -> str:
     """허용 태그만 남기고 나머지 태그는 벗긴다. script/style은 내용까지 제거."""
     soup = BeautifulSoup(html, "html.parser")
@@ -142,7 +162,7 @@ def select_topics(reports: list[ResearchReport], research: dict, run_id: str = "
 
     provider = get_provider(pipeline="morning_briefing", stage="deep_dive:select", run_id=run_id)
     try:
-        raw = provider.call(SELECT_SYSTEM, "\n".join(lines))
+        raw = _call(provider, SELECT_SYSTEM, "\n".join(lines), "select")
         items = _parse_json_array(raw)
     except Exception as e:
         logger.warning("딥다이브 주제 선정 실패: %s", e)
@@ -190,7 +210,7 @@ def write_topic(sel: dict, reports: list[ResearchReport], research: dict, run_id
 
     provider = get_provider(pipeline="morning_briefing", stage="deep_dive:write", run_id=run_id)
     try:
-        raw = provider.call(WRITE_SYSTEM.format(tone=TOSS_TONE), "\n".join(parts))
+        raw = _call(provider, WRITE_SYSTEM.format(tone=TOSS_TONE), "\n".join(parts), f"write:{sel['headline']}")
     except Exception as e:
         logger.warning("딥다이브 본문 실패 (%s): %s", sel["headline"], e)
         return None
@@ -206,7 +226,7 @@ def _summarize(topics: list[DeepDiveTopic], run_id: str = "") -> list[str]:
     text = "\n\n".join(f"## {t.headline}\n{BeautifulSoup(t.body_html, 'html.parser').get_text(' ')}" for t in topics)
     provider = get_provider(pipeline="morning_briefing", stage="deep_dive:summary", run_id=run_id)
     try:
-        raw = provider.call(SUMMARY_SYSTEM.format(tone=TOSS_TONE), "[전체 요약]\n" + text)
+        raw = _call(provider, SUMMARY_SYSTEM.format(tone=TOSS_TONE), "[전체 요약]\n" + text, "summary")
     except Exception as e:
         logger.warning("딥다이브 요약 실패: %s", e)
         return []
