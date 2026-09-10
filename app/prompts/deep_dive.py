@@ -1,9 +1,14 @@
-"""딥다이브 — 증권사 리포트 + 웹 리서치로 주제 2~3개를 골라 끝까지 파는 글을 쓴다.
+"""딥다이브 — 증권사 리포트 + 웹 리서치로 주제 3개를 골라 '월가소식' 형식으로 쓴다.
+
+형식(사용자가 준 뉴스레터 스크린샷 기준):
+- 제목 = 주제별 짧은 목차 문구를 " / "로 연결.
+- 전체 요약 = 주제당 한 줄 불릿.
+- 주제별 섹션 = 형광펜 헤더 "문장형 헤드라인 (주 출처)" + 문단 2개(≈500자), 담담한 "~습니다"체.
 
 2단계:
-1) select_topics: 리포트 목록 + 웹 리서치 요약을 보고 주제 2~3개를 JSON으로 선정.
-2) write_topic: 주제별 근거 리포트 전문 + 관련 웹 리서치로 본문(제한된 HTML) 작성. 병렬.
-마지막에 전체 요약 불릿을 한 번 더 뽑는다. 모든 실패는 축소(None/빈 리스트).
+1) select_topics: 리포트 목록 + 웹 리서치 요약 → 주제 JSON.
+2) write_topic: 주제별 근거 자료 → 본문 HTML(<p> 2개). 길면 1회 압축 재작성. 병렬.
+마지막에 요약 불릿. 모든 실패는 축소(None/빈 리스트).
 """
 
 from __future__ import annotations
@@ -19,14 +24,16 @@ from dataclasses import dataclass, field
 from bs4 import BeautifulSoup
 
 from app.collector.naver_research import ResearchReport
-from app.prompts.opinions import TOSS_TONE
 from app.summarizer import get_provider, strip_code_block
 
 logger = logging.getLogger(__name__)
 
 MIN_TOPICS = 2
 MAX_TOPICS = 3
-ALLOWED_TAGS = {"p", "strong", "em", "ul", "li"}
+ALLOWED_TAGS = {"p", "strong", "em"}
+MAX_PARAGRAPHS = 2
+MAX_BODY_CHARS = 650        # 이 이상이면 1회 압축 재작성
+TARGET_BODY_CHARS = 500
 _EXCERPT_FOR_SELECT = 300   # 선정 단계엔 리포트 발췌 앞부분만
 _RESEARCH_FOR_WRITE = 2500  # 작성 단계 웹 리서치 상한(키당)
 _TRIES = 3
@@ -35,10 +42,16 @@ _RETRY_SLEEP = 5  # 초 × 시도 횟수 (CLI 한도·빈 응답 같은 일시 �
 
 @dataclass
 class DeepDiveTopic:
-    headline: str
+    title: str        # 제목 목차용 짧은 문구 (예: 버블 경보가 풀린 코스피?)
+    headline: str     # 섹션 헤더 문장 (예: 코스피, 버블 경보가 풀렸습니다)
     emoji: str
+    source: str       # 주 출처 기관 (예: BofA) — 헤더 괄호에 표기
     body_html: str
     sources: list[str] = field(default_factory=list)
+
+    @property
+    def header(self) -> str:
+        return f"{self.headline} ({self.source})" if self.source else self.headline
 
 
 @dataclass
@@ -47,43 +60,53 @@ class DeepDive:
     topics: list[DeepDiveTopic]
 
 
-SELECT_SYSTEM = """당신은 중장기 투자자 한 명을 위한 리서치 에디터예요.
-오늘 나온 증권사 리포트 목록과 웹 리서치 요약을 읽고, 오늘 깊게 다룰 주제 2~3개를 고르세요.
+TONE = """[문체]
+- 신문 해설 기사처럼 담담한 "~습니다"체. 감탄·권유·따뜻한 말투 금지.
+- 용어 풀이용 괄호 금지. 괄호는 출처·수치 보충에만 씁니다. 예: (BofA), (7월 초 80% → 44.5%).
+- 모든 문장에 정보가 있어야 합니다. 도입·정리·인사 문장 금지.
+- 숫자는 구체적으로. 비교 기준(과거·타 지수·컨센서스)을 붙입니다."""
+
+
+SELECT_SYSTEM = """당신은 개인 투자자용 아침 뉴스레터의 에디터입니다.
+오늘 나온 증권사 리포트 목록과 웹 리서치 요약을 읽고, 오늘 다룰 주제 3개를 고릅니다(자료가 빈약하면 2개).
 
 [선정 기준 — 중요한 순서]
-1. 1차 출처의 *구체적 숫자*가 있는가 (지표·밸류·실적·수주 금액 등). 숫자 없는 주제는 뒤로.
+1. 기관(증권사·IB·통계기관)의 *구체적 숫자*가 있는가. 숫자 없는 주제는 뒤로.
 2. 내 레이더(마벨·아마존·알파벳·네이버·SK하이닉스)나 테마(반도체·AI SW·로봇·M7)와 연관되면 가산점.
 3. 하루짜리 등락이 아니라 몇 주~몇 달 가는 흐름인가.
-4. 주제끼리 겹치지 않게 — 한국 시장 / 미국·거시 / 산업·테마처럼 축이 다르면 좋아요.
+4. 주제끼리 축이 다르게 — 한국 시장 / 미국·거시 / 산업·테마.
 
 [출력] JSON 배열만. 설명 금지. 각 원소:
-{"headline": "제목 목차용 12자 내외 문구 (예: 버블 경보가 풀린 코스피?)",
+{"title": "제목 목차용 10~14자 문구. 예: 버블 경보가 풀린 코스피?",
+ "headline": "섹션 헤더 문장. 예: 코스피, 버블 경보가 풀렸습니다",
  "emoji": "섹션 앵커 이모지 1개 (🇰🇷 🇺🇸 🌍 🔬 🤖 💾 ⚡ 등)",
+ "source": "이 주제의 주 출처 기관 짧게. 예: BofA, 신한투자증권, JPM. 없으면 빈 문자열",
  "why": "왜 오늘 이 주제인지 한 문장",
  "report_idx": [근거가 되는 리포트 번호들],
  "research_keys": [관련 웹 리서치 키: "market" | "themes" | 종목 티커]}"""
 
 
-WRITE_SYSTEM = """당신은 중장기 투자자 한 명을 위해 오늘의 주제 하나를 끝까지 파는 리서치 작가예요.
-아래 근거 자료(증권사 리포트 발췌 + 웹 리서치)만 사용해서 쓰세요. 자료에 없는 숫자·사실은 절대 지어내지 마세요.
+WRITE_SYSTEM = """당신은 개인 투자자용 아침 뉴스레터의 필자입니다. 아래 근거 자료(증권사 리포트 발췌 + 웹 리서치)만 사용해
+오늘의 주제 하나를 씁니다. 자료에 없는 숫자·사실은 절대 쓰지 않습니다.
 
-[글 구조 — 이 순서로, 소제목 없이 문단으로 자연스럽게]
-1. 데이터: 어떤 숫자가 나왔나. 출처(증권사/기관)를 괄호로.
-2. 해석: 그 숫자가 뜻하는 것. 과거 이력·비교 대상이 있으면 함께.
-3. 결론: 그래서 어떻게 봐야 하나. "안전해졌다 ≠ 상승 베팅"처럼 한 줄로 못 박아요.
-4. 실행 아이디어: 중장기 투자자가 할 수 있는 것 (자료에 있을 때만, 없으면 생략).
-5. 반론: 이 결론이 틀릴 수 있는 이유 한 가지.
+[구성 — 정확히 문단 2개]
+1문단: 무슨 일이 있었고 숫자가 무엇인지. 출처 기관을 괄호로. 그 숫자가 왜 의미 있는지 한두 문장(과거 이력·비교 대상).
+2문단: 결론을 한 문장으로 못 박고("안전해졌다가 아니라 상승에 베팅할 수 있다는 쪽입니다" 식), 자료에 있으면 실행 아이디어 한 문장,
+      마지막에 "다만 ~" 으로 반론·단서 한 문장.
 
 {tone}
 
 [출력 규칙]
-- 분량 400~700자. 문단 3~5개.
-- HTML만 출력. 허용 태그: <p> <strong> <em> <ul> <li>. 그 외 태그·마크다운·코드블록 금지.
-- 핵심 숫자와 결론 문장은 <strong>으로."""
+- 전체 {target}자 안팎(공백 포함). 절대 {limit}자를 넘기지 않습니다.
+- HTML만 출력. <p> 2개, 안에서 <strong>은 핵심 숫자·결론 한 곳씩만. 그 외 태그·마크다운·코드블록·소제목 금지."""
 
 
-SUMMARY_SYSTEM = """아래 딥다이브 주제들을 읽고 '오늘 이것만 알면 되는' 전체 요약을 불릿 2~3개로 써요.
-각 불릿은 한 문장, 숫자 하나 이상 포함. {tone}
+COMPRESS_SYSTEM = """아래 글을 같은 문체("~습니다"체, 괄호 풀이 금지)로 {target}자 안팎으로 압축합니다.
+문단 2개 유지. 숫자·출처·결론·"다만" 단서는 남기고 수식어와 반복을 지웁니다. HTML <p> 2개만 출력."""
+
+
+SUMMARY_SYSTEM = """아래 주제들을 각각 한 문장으로 요약합니다. 주제 순서대로 한 줄씩, 주제 수만큼만.
+각 문장은 핵심 숫자 하나와 결론을 담은 "~습니다"체. 용어 풀이 괄호 금지.
 [출력] "- " 로 시작하는 줄만. 다른 말 금지."""
 
 
@@ -117,6 +140,20 @@ def sanitize_html(html: str) -> str:
         else:
             tag.attrs = {}
     return str(soup).strip()
+
+
+def _paragraphs(html: str) -> list[str]:
+    """<p>…</p> 목록. <p>가 없으면 전체를 문단 하나로 감싼다."""
+    soup = BeautifulSoup(html, "html.parser")
+    ps = [str(p) for p in soup.find_all("p") if p.get_text(strip=True)]
+    if ps:
+        return ps
+    text = html.strip()
+    return [f"<p>{text}</p>"] if text else []
+
+
+def _text_len(html: str) -> int:
+    return len(BeautifulSoup(html, "html.parser").get_text(" ", strip=True))
 
 
 def _parse_json_array(raw: str) -> list:
@@ -171,13 +208,16 @@ def select_topics(reports: list[ResearchReport], research: dict, run_id: str = "
     valid_keys = set(_research_keys_available(research))
     out: list[dict] = []
     for it in items[:MAX_TOPICS]:
-        if not isinstance(it, dict) or not it.get("headline"):
+        if not isinstance(it, dict) or not (it.get("headline") or it.get("title")):
             continue
+        headline = str(it.get("headline") or it.get("title")).strip()
         idx = [i for i in (it.get("report_idx") or []) if isinstance(i, int) and 0 <= i < len(reports)]
         keys = [k for k in (it.get("research_keys") or []) if k in valid_keys]
         out.append({
-            "headline": str(it["headline"]).strip(),
+            "title": str(it.get("title") or headline).strip(),
+            "headline": headline,
             "emoji": str(it.get("emoji") or "📌").strip(),
+            "source": str(it.get("source") or "").strip(),
             "why": str(it.get("why") or "").strip(),
             "report_idx": idx,
             "research_keys": keys,
@@ -189,6 +229,22 @@ def select_topics(reports: list[ResearchReport], research: dict, run_id: str = "
 
 
 # ── 2단계: 본문 작성 ──
+
+def _fit_body(provider, body: str, label: str) -> str:
+    """문단 2개·글자 상한을 강제한다. 넘치면 1회 압축 재작성, 그래도 넘치면 문단만 자른다."""
+    paras = _paragraphs(body)
+    if len(paras) <= MAX_PARAGRAPHS and _text_len(body) <= MAX_BODY_CHARS:
+        return "".join(paras)
+    logger.info("딥다이브 압축 (%s): %d문단 %d자", label, len(paras), _text_len(body))
+    try:
+        raw = _call(provider, COMPRESS_SYSTEM.format(target=TARGET_BODY_CHARS), "".join(paras), f"compress:{label}")
+        compressed = _paragraphs(sanitize_html(strip_code_block(raw)))
+        if compressed:
+            paras = compressed
+    except Exception as e:
+        logger.warning("딥다이브 압축 실패, 원문 사용 (%s): %s", label, e)
+    return "".join(paras[:MAX_PARAGRAPHS])
+
 
 def write_topic(sel: dict, reports: list[ResearchReport], research: dict, run_id: str = "") -> DeepDiveTopic | None:
     """주제 하나의 본문을 쓴다. 실패 시 None."""
@@ -209,8 +265,9 @@ def write_topic(sel: dict, reports: list[ResearchReport], research: dict, run_id
         sources = ["웹 리서치"]
 
     provider = get_provider(pipeline="morning_briefing", stage="deep_dive:write", run_id=run_id)
+    system = WRITE_SYSTEM.format(tone=TONE, target=TARGET_BODY_CHARS, limit=MAX_BODY_CHARS)
     try:
-        raw = _call(provider, WRITE_SYSTEM.format(tone=TOSS_TONE), "\n".join(parts), f"write:{sel['headline']}")
+        raw = _call(provider, system, "\n".join(parts), f"write:{sel['headline']}")
     except Exception as e:
         logger.warning("딥다이브 본문 실패 (%s): %s", sel["headline"], e)
         return None
@@ -218,34 +275,41 @@ def write_topic(sel: dict, reports: list[ResearchReport], research: dict, run_id
     if not body:
         logger.warning("딥다이브 본문 비어 있음 (%s)", sel["headline"])
         return None
-    logger.info("딥다이브 본문 완료: %s (%d자)", sel["headline"], len(body))
-    return DeepDiveTopic(headline=sel["headline"], emoji=sel["emoji"], body_html=body, sources=sources)
+    body = _fit_body(provider, body, sel["headline"])
+    logger.info("딥다이브 본문 완료: %s (%d자)", sel["headline"], _text_len(body))
+    return DeepDiveTopic(
+        title=sel.get("title") or sel["headline"],
+        headline=sel["headline"],
+        emoji=sel["emoji"],
+        source=sel.get("source", ""),
+        body_html=body,
+        sources=sources,
+    )
 
 
 def _summarize(topics: list[DeepDiveTopic], run_id: str = "") -> list[str]:
-    text = "\n\n".join(f"## {t.headline}\n{BeautifulSoup(t.body_html, 'html.parser').get_text(' ')}" for t in topics)
+    text = "\n\n".join(
+        f"## {t.headline}\n{BeautifulSoup(t.body_html, 'html.parser').get_text(' ')}" for t in topics
+    )
     provider = get_provider(pipeline="morning_briefing", stage="deep_dive:summary", run_id=run_id)
     try:
-        raw = _call(provider, SUMMARY_SYSTEM.format(tone=TOSS_TONE), "[전체 요약]\n" + text, "summary")
+        raw = _call(provider, SUMMARY_SYSTEM, "[전체 요약]\n" + text, "summary")
     except Exception as e:
         logger.warning("딥다이브 요약 실패: %s", e)
         return []
     bullets = [re.sub(r"^[-•*]\s*", "", ln).strip() for ln in strip_code_block(raw).splitlines() if ln.strip()]
-    return [b.replace("**", "") for b in bullets if b][:3]
+    return [b.replace("**", "") for b in bullets if b][: len(topics)]
 
 
 # ── 진입점 ──
 
-async def build_deep_dive(
-    overview: str, research: dict, reports: list[ResearchReport], run_id: str = ""
-) -> DeepDive | None:
+async def build_deep_dive(research: dict, reports: list[ResearchReport], run_id: str = "") -> DeepDive | None:
     """주제 선정 → 본문 병렬 작성 → 요약. 주제가 하나도 안 나오면 None."""
-    del overview  # 현재는 리포트+웹 리서치만 사용. 시그니처는 스펙 유지.
     logger.info("딥다이브 시작: 리포트 %d건", len(reports))
     selected = await to_thread(select_topics, reports, research, run_id)
     if not selected:
         return None
-    logger.info("딥다이브 주제 선정: %s", " / ".join(s["headline"] for s in selected))
+    logger.info("딥다이브 주제 선정: %s", " / ".join(s["title"] for s in selected))
 
     results = await asyncio.gather(
         *[to_thread(write_topic, s, reports, research, run_id) for s in selected],

@@ -5,57 +5,56 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ subject }}</title>
 <style>
-  /* 본문 컨텐츠(LLM 생성 HTML) 공통 스타일 — 인라인 못 붙이는 태그용 */
-  .body p { margin: 0 0 12px 0; font-size: 15px; line-height: 1.75; color: #333D4B; word-break: keep-all; }
+  .body p { margin: 0 0 14px 0; font-size: 15px; line-height: 1.8; color: #333D4B; word-break: keep-all; }
   .body p:last-child { margin-bottom: 0; }
-  .body ul { margin: 0 0 12px 0; padding-left: 20px; }
-  .body li { font-size: 15px; line-height: 1.75; color: #333D4B; margin-bottom: 4px; word-break: keep-all; }
   .body strong { color: #191F28; font-weight: 700; }
-  .body em { color: #4E5968; }
-  .body hr { border: 0; border-top: 1px solid #E5E8EB; margin: 14px 0; }
-  .dash p { font-size: 14px; line-height: 1.7; }
-  .dash li { font-size: 14px; line-height: 1.7; }
+  .body em { color: #4E5968; font-style: normal; border-bottom: 1px solid #C9CDD2; }
 </style>
 </head>
 <body style="margin: 0; padding: 0; background-color: #F4F5F7; -webkit-text-size-adjust: 100%;">
 <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #F4F5F7; font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;">
 <tr><td align="center" style="padding: 32px 16px;">
 
-<table cellpadding="0" cellspacing="0" border="0" width="640" style="max-width: 640px; background-color: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
-
-  <!-- 로고 -->
-  <tr>
-    <td style="padding: 28px 36px 0 36px;">
-      <table cellpadding="0" cellspacing="0" border="0"><tr>
-        <td style="width: 8px; height: 8px; background-color: #3182F6; border-radius: 50%;"></td>
-        <td style="padding-left: 8px; font-size: 14px; font-weight: 700; color: #3182F6; letter-spacing: -0.3px;">Moneydive</td>
-        <td style="padding-left: 10px; font-size: 12px; color: #8B95A1;">아침 브리핑</td>
-      </tr></table>
-    </td>
-  </tr>
+<table cellpadding="0" cellspacing="0" border="0" width="640" style="max-width: 640px; background-color: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
 
   <!-- 제목 = 주제 목차 -->
   <tr>
-    <td style="padding: 22px 36px 0 36px;">
-      <div style="font-size: 22px; line-height: 1.4; font-weight: 800; color: #191F28; letter-spacing: -0.5px; word-break: keep-all;">
-        {% if topics_headline %}{{ topics_headline }}{% else %}{{ date_label }}{% endif %}
+    <td style="padding: 30px 36px 0 36px;">
+      <div style="font-size: 21px; line-height: 1.45; font-weight: 800; color: #191F28; letter-spacing: -0.4px; word-break: keep-all;">
+        {% if topics_headline %}{{ topics_headline }} | {% endif %}{{ date_label }}
       </div>
-      <div style="margin-top: 8px; font-size: 13px; color: #8B95A1;">
-        {% if topics_headline %}{{ date_label }} &middot; {% endif %}AI 리서치 &middot; 개인 참고용
-      </div>
+    </td>
+  </tr>
+
+  <!-- 작성자 · 날짜 -->
+  <tr>
+    <td style="padding: 14px 36px 0 36px;">
+      <table cellpadding="0" cellspacing="0" border="0"><tr>
+        <td style="width: 22px; height: 22px; background-color: #191F28; border-radius: 50%; color: #FFFFFF; font-size: 11px; font-weight: 800; text-align: center; vertical-align: middle;">M</td>
+        <td style="padding-left: 8px; font-size: 13px; font-weight: 700; color: #333D4B;">Moneydive_리서치</td>
+        <td style="padding-left: 6px; font-size: 12px; color: #3182F6;">&#10004;</td>
+        <td style="padding: 0 10px; color: #E5E8EB;">|</td>
+        <td style="font-size: 13px; color: #8B95A1;">{{ date_full }}</td>
+      </tr></table>
     </td>
   </tr>
 
   <!-- 안내 박스 -->
   <tr>
-    <td style="padding: 20px 36px 0 36px;">
-      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #F2F4F6; border-radius: 12px;">
-        <tr><td style="padding: 14px 16px;">
-          <div style="font-size: 12px; font-weight: 700; color: #4E5968; margin-bottom: 6px;">📢 알려드립니다</div>
-          <div style="font-size: 12px; line-height: 1.6; color: #6B7684; word-break: keep-all;">
-            이 글은 증권사 리포트와 웹 리서치를 AI가 요약·해석한 개인 참고 자료로, 특정 종목의 매수·매도를 권하는 <strong>투자 권유가 아닙니다.</strong><br>
-            숫자와 출처는 자료 기준이며 정확성·완전성을 보장하지 않습니다. 투자 판단과 책임은 본인에게 있습니다.
-          </div>
+    <td style="padding: 24px 36px 0 36px;">
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #F2F4F6; border-radius: 10px;">
+        <tr><td style="padding: 16px 18px;">
+          <span style="display: inline-block; border: 1px solid #C9CDD2; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; color: #4E5968; background: #FFFFFF;">📢 알려드립니다</span>
+          <table cellpadding="0" cellspacing="0" border="0" style="margin-top: 12px;">
+            <tr>
+              <td style="vertical-align: top; font-size: 12px; color: #8B95A1; padding-right: 8px;">&#9432;</td>
+              <td style="font-size: 12px; line-height: 1.6; color: #6B7684; word-break: keep-all; padding-bottom: 8px;">본 콘텐츠는 증권사 리포트와 공개 자료를 AI가 요약·해석한 개인 참고용 정보로, 특정 투자상품의 매수·매도 또는 보유를 권유하지 않으며 어떠한 경우에도 투자 조언으로 해석될 수 없습니다.</td>
+            </tr>
+            <tr>
+              <td style="vertical-align: top; font-size: 12px; color: #8B95A1; padding-right: 8px;">&#9432;</td>
+              <td style="font-size: 12px; line-height: 1.6; color: #6B7684; word-break: keep-all;">수치와 출처는 원자료 기준이며 정확성·완전성·신뢰성을 보장하지 않습니다. 이용에 따른 직·간접적 손실에 대해 책임을 지지 않습니다.</td>
+            </tr>
+          </table>
         </td></tr>
       </table>
     </td>
@@ -64,52 +63,41 @@
   {% if summary %}
   <!-- 전체 요약 -->
   <tr>
-    <td style="padding: 28px 36px 0 36px;">
-      <span style="display: inline-block; background-color: #FFF3B0; padding: 3px 8px; border-radius: 4px; font-size: 17px; font-weight: 800; color: #191F28;">📝 전체 요약</span>
+    <td style="padding: 30px 36px 0 36px;">
+      <span style="display: inline-block; background-color: #FFF3B0; padding: 3px 8px; border-radius: 3px; font-size: 18px; font-weight: 800; color: #191F28;">📝 {{ date_short }} 아침 브리핑 전체 요약</span>
       <ul style="margin: 14px 0 0 0; padding-left: 20px;">
         {% for s in summary %}
-        <li style="font-size: 15px; line-height: 1.75; color: #333D4B; margin-bottom: 6px; word-break: keep-all;">{{ s }}</li>
+        <li style="font-size: 14px; line-height: 1.75; color: #4E5968; margin-bottom: 6px; word-break: keep-all;">{{ s }}</li>
         {% endfor %}
       </ul>
     </td>
   </tr>
   {% endif %}
 
-  <!-- 대시보드 -->
-  <tr>
-    <td style="padding: 28px 36px 0 36px;">
-      <span style="display: inline-block; background-color: #FFF3B0; padding: 3px 8px; border-radius: 4px; font-size: 17px; font-weight: 800; color: #191F28;">📊 대시보드</span>
-      <div class="body dash" style="margin-top: 14px;">{{ overview_html | safe }}</div>
-    </td>
-  </tr>
-
-  <!-- 5명의 시선 -->
-  <tr>
-    <td style="padding: 28px 36px 0 36px;">
-      <span style="display: inline-block; background-color: #FFF3B0; padding: 3px 8px; border-radius: 4px; font-size: 17px; font-weight: 800; color: #191F28;">💬 5명의 시선</span>
-      <div class="body dash" style="margin-top: 14px;">{{ opinions_html | safe }}</div>
-    </td>
-  </tr>
-
   {% for t in topics %}
-  <!-- 딥다이브 -->
   <tr>
-    <td style="padding: 32px 36px 0 36px;">
-      <div style="border-top: 1px solid #E5E8EB; margin-bottom: 26px;"></div>
-      <span style="display: inline-block; background-color: #FFF3B0; padding: 3px 8px; border-radius: 4px; font-size: 18px; font-weight: 800; color: #191F28; word-break: keep-all;">{{ t.emoji }} {{ t.headline }}</span>
+    <td style="padding: 34px 36px 0 36px;">
+      <span style="display: inline-block; background-color: #FFF3B0; padding: 3px 8px; border-radius: 3px; font-size: 18px; font-weight: 800; color: #191F28; word-break: keep-all;">{{ t.emoji }} {{ t.header }}</span>
       <div class="body" style="margin-top: 16px;">{{ t.body_html | safe }}</div>
       {% if t.sources %}
-      <div style="margin-top: 12px; font-size: 12px; line-height: 1.6; color: #8B95A1; word-break: keep-all;">
-        출처: {{ t.sources | join(' · ') }}
+      <div style="margin-top: 10px; font-size: 11px; line-height: 1.6; color: #B0B8C1; word-break: keep-all;">
+        자료: {{ t.sources | join(' · ') }}
       </div>
       {% endif %}
     </td>
   </tr>
   {% endfor %}
 
-  <!-- 하단 여백 -->
-  <tr><td style="padding: 32px 36px 28px 36px;">
-    <div style="border-top: 1px solid #E5E8EB; padding-top: 14px; font-size: 11px; color: #B0B8C1;">
+  {% if not topics %}
+  <tr>
+    <td style="padding: 30px 36px 0 36px; font-size: 14px; color: #6B7684;">
+      오늘은 리포트와 리서치에서 다룰 만한 주제를 찾지 못했습니다.
+    </td>
+  </tr>
+  {% endif %}
+
+  <tr><td style="padding: 34px 36px 26px 36px;">
+    <div style="border-top: 1px solid #E5E8EB; padding-top: 12px; font-size: 11px; color: #B0B8C1;">
       Moneydive &middot; 개인 아침 브리핑{% if run_id %} &middot; {{ run_id }}{% endif %}
     </div>
   </td></tr>
