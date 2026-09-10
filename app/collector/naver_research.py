@@ -1,8 +1,9 @@
 """네이버 증권 리서치 — 당일 증권사 리포트를 수집해 본문 발췌를 만든다.
 
-소스: finance.naver.com/research/*_list.naver (비인증, EUC-KR).
+소스: m.stock.naver.com/api/research/{category} (비인증 JSON). 2026-09-10 finance.naver.com 구 페이지가
+stock.naver.com으로 이전(302)되어 API 기반으로 전환.
 시황·투자전략·산업·경제는 당일 전부, 종목분석은 WATCHLIST 종목만.
-PDF가 있으면 앞 3페이지 텍스트, 없거나 실패하면 read 페이지 본문으로 폴백.
+발췌 = 상세 API의 content(증권사 요약 HTML → 텍스트) + attachUrl PDF 앞 3페이지 텍스트.
 """
 
 from __future__ import annotations
@@ -23,26 +24,27 @@ from app.core.http import get_http_client
 
 logger = logging.getLogger(__name__)
 
-BASE = "https://finance.naver.com/research/"
+API = "https://m.stock.naver.com/api/research"
 UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 )
-HEADERS = {"User-Agent": UA, "Referer": BASE}
+HEADERS = {"User-Agent": UA, "Referer": "https://stock.naver.com/research/daily"}
 
-# 카테고리 → 목록 페이지
+# 카테고리 표시명 → API 경로
 CATEGORIES: dict[str, str] = {
-    "시황": "market_info_list.naver",
-    "투자전략": "invest_list.naver",
-    "산업": "industry_list.naver",
-    "경제": "economy_list.naver",
-    "종목": "company_list.naver",
+    "시황": "market",
+    "투자전략": "invest",
+    "산업": "industry",
+    "경제": "economy",
+    "종목": "company",
 }
 
 PER_CATEGORY_LIMIT = 15
 TOTAL_LIMIT = 40
 PDF_MAX_PAGES = 3
 EXCERPT_MAX_CHARS = 6000
+PAGE_SIZE = 20
 MAX_LIST_PAGES = 3
 _CONCURRENCY = 5
 _KST = ZoneInfo("Asia/Seoul")
@@ -59,72 +61,52 @@ class ResearchReport:
     read_url: str
     excerpt: str = ""
     views: int = 0
+    research_id: str = ""
 
 
 def _parse_date(text: str) -> date | None:
-    m = re.search(r"(\d{2})\.(\d{2})\.(\d{2})", text)
+    m = re.search(r"(\d{4})-(\d{2})-(\d{2})", text or "")
     if not m:
         return None
-    yy, mm, dd = (int(x) for x in m.groups())
-    return date(2000 + yy, mm, dd)
+    return date(*(int(x) for x in m.groups()))
 
 
-def parse_list_page(html: str, category: str) -> list[ResearchReport]:
-    """목록 페이지 HTML → ResearchReport 리스트 (excerpt 비어 있음)."""
-    soup = BeautifulSoup(html, "html.parser")
-    table = soup.find("table", class_="type_1")
-    if table is None:
-        return []
+def _to_int(v) -> int:
+    digits = re.sub(r"\D", "", str(v or ""))
+    return int(digits) if digits else 0
+
+
+def parse_list(items: list, category: str) -> list[ResearchReport]:
+    """목록 API 응답(JSON 배열) → ResearchReport 리스트 (excerpt 비어 있음)."""
     out: list[ResearchReport] = []
-    for tr in table.find_all("tr"):
-        read_a = tr.find("a", href=re.compile(r"_read\.naver\?nid="))
-        if read_a is None:
+    for it in items or []:
+        if not isinstance(it, dict):
             continue
-        tds = tr.find_all("td")
-        if len(tds) < 4:
+        d = _parse_date(it.get("writeDate"))
+        rid = str(it.get("researchId") or "")
+        if d is None or not rid:
             continue
-        ticker = None
-        stock_a = tr.find("a", class_="stock_item")
-        if stock_a is not None:
-            m = re.search(r"code=(\d{6})", stock_a.get("href", ""))
-            ticker = m.group(1) if m else None
-        # 증권사 셀: read 링크가 있는 td 바로 다음 td
-        read_td = read_a.find_parent("td")
-        broker_td = read_td.find_next_sibling("td") if read_td else None
-        broker = broker_td.get_text(strip=True) if broker_td else ""
-        file_td = tr.find("td", class_="file")
-        pdf_a = file_td.find("a", href=re.compile(r"\.pdf$")) if file_td else None
-        pdf_url = pdf_a["href"] if pdf_a else None
-        date_tds = tr.find_all("td", class_="date")
-        d = _parse_date(date_tds[0].get_text()) if date_tds else None
-        if d is None:
-            continue
-        views = 0
-        if len(date_tds) > 1:
-            digits = re.sub(r"\D", "", date_tds[1].get_text())
-            views = int(digits) if digits else 0
         out.append(
             ResearchReport(
                 category=category,
-                title=read_a.get_text(strip=True),
-                broker=broker,
+                title=str(it.get("title") or "").strip(),
+                broker=str(it.get("brokerName") or "").strip(),
                 date=d,
-                ticker=ticker,
-                pdf_url=pdf_url,
-                read_url=BASE + read_a["href"].lstrip("/"),
-                views=views,
+                ticker=str(it["itemCode"]) if it.get("itemCode") else None,
+                pdf_url=None,  # 상세 API에서 채움
+                read_url=str(it.get("endUrl") or f"https://m.stock.naver.com/research/{CATEGORIES.get(category, 'market')}/{rid}"),
+                views=_to_int(it.get("readCount")),
+                research_id=rid,
             )
         )
     return out
 
 
-def extract_read_text(html: str) -> str:
-    """read 페이지의 본문(td.view_cnt) 텍스트를 뽑는다."""
-    soup = BeautifulSoup(html, "html.parser")
-    td = soup.find("td", class_="view_cnt")
-    if td is None:
+def html_to_text(html: str) -> str:
+    """상세 content(HTML)를 공백 정리된 텍스트로."""
+    if not html:
         return ""
-    text = td.get_text(" ", strip=True)
+    text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
     return re.sub(r"\s+", " ", text).strip()
 
 
@@ -140,49 +122,55 @@ def extract_pdf_text(data: bytes, max_pages: int = PDF_MAX_PAGES) -> str:
     return re.sub(r"[ \t]+", " ", text).strip()
 
 
-def _decode(resp: httpx.Response) -> str:
-    return resp.content.decode("euc-kr", errors="ignore")
-
-
 async def _fetch_list(client: httpx.AsyncClient, category: str, target: date) -> list[ResearchReport]:
     """카테고리 목록을 당일 행이 끊길 때까지 페이지 순회한다."""
     rows: list[ResearchReport] = []
+    path = CATEGORIES[category]
     for page in range(1, MAX_LIST_PAGES + 1):
-        url = f"{BASE}{CATEGORIES[category]}?page={page}"
+        url = f"{API}/{path}?page={page}&pageSize={PAGE_SIZE}"
         try:
             resp = await client.get(url, headers=HEADERS)
             resp.raise_for_status()
-        except (httpx.HTTPError, httpx.InvalidURL) as e:
+            items = resp.json()
+        except (httpx.HTTPError, httpx.InvalidURL, ValueError) as e:
             logger.warning("리포트 목록 실패 (%s p%d): %s", category, page, e)
             break
-        parsed = parse_list_page(_decode(resp), category)
+        parsed = parse_list(items, category)
         if not parsed:
             break
         todays = [r for r in parsed if r.date == target]
         rows.extend(todays)
-        if len(todays) < len(parsed) or any(r.date < target for r in parsed):
+        if len(todays) < len(parsed) or len(parsed) < PAGE_SIZE:
             break
     return rows
 
 
 async def _fill_excerpt(client: httpx.AsyncClient, sem: asyncio.Semaphore, r: ResearchReport) -> None:
+    """상세 API의 content + PDF 앞부분으로 excerpt를 채운다. 실패는 스킵."""
     async with sem:
+        path = CATEGORIES.get(r.category, "market")
+        try:
+            resp = await client.get(f"{API}/{path}/{r.research_id}", headers=HEADERS)
+            resp.raise_for_status()
+            content = (resp.json() or {}).get("researchContent") or {}
+        except (httpx.HTTPError, httpx.InvalidURL, ValueError) as e:
+            logger.warning("리포트 상세 실패, 스킵 (%s): %s", r.title, e)
+            return
+        parts: list[str] = []
+        summary = html_to_text(content.get("content") or "")
+        if summary:
+            parts.append(summary)
+        r.pdf_url = content.get("attachUrl") or None
         if r.pdf_url:
             try:
-                resp = await client.get(r.pdf_url, headers=HEADERS, timeout=30)
-                resp.raise_for_status()
-                text = await asyncio.to_thread(extract_pdf_text, resp.content)
+                pdf = await client.get(r.pdf_url, headers=HEADERS, timeout=30)
+                pdf.raise_for_status()
+                text = await asyncio.to_thread(extract_pdf_text, pdf.content)
                 if text:
-                    r.excerpt = text[:EXCERPT_MAX_CHARS]
-                    return
+                    parts.append(text)
             except Exception as e:  # PDF 파싱 오류 포함
-                logger.warning("PDF 실패 → read 폴백 (%s): %s", r.title, e)
-        try:
-            resp = await client.get(r.read_url, headers=HEADERS)
-            resp.raise_for_status()
-            r.excerpt = extract_read_text(_decode(resp))[:EXCERPT_MAX_CHARS]
-        except Exception as e:
-            logger.warning("read 페이지 실패, 스킵 (%s): %s", r.title, e)
+                logger.warning("PDF 실패, 요약만 사용 (%s): %s", r.title, e)
+        r.excerpt = "\n\n".join(parts)[:EXCERPT_MAX_CHARS]
 
 
 def _watch_codes() -> set[str]:
