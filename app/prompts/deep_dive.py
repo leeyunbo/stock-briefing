@@ -37,6 +37,7 @@ TARGET_BODY_CHARS = 500
 _EXCERPT_FOR_SELECT = 300   # 선정 단계엔 리포트 발췌 앞부분만
 _RESEARCH_FOR_WRITE = 2500  # 작성 단계 웹 리서치 상한(키당)
 _TRIES = 3
+MAX_SOURCES = 3            # 자료 줄에 표기할 리포트 수
 _RETRY_SLEEP = 5  # 초 × 시도 횟수 (CLI 한도·빈 응답 같은 일시 실패 대비)
 
 
@@ -263,6 +264,7 @@ def write_topic(sel: dict, reports: list[ResearchReport], research: dict, run_id
         parts.append("(없음)")
     if not sources:
         sources = ["웹 리서치"]
+    sources = sources[:MAX_SOURCES]
 
     provider = get_provider(pipeline="morning_briefing", stage="deep_dive:write", run_id=run_id)
     system = WRITE_SYSTEM.format(tone=TONE, target=TARGET_BODY_CHARS, limit=MAX_BODY_CHARS)

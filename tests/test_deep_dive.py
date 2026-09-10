@@ -136,6 +136,14 @@ def test_write_topic_builds_topic_with_sources_and_header():
     assert len(fp.calls) == 1  # 길이 안 넘으면 압축 호출 없음
 
 
+def test_write_topic_caps_sources_at_three():
+    fp = FakeProvider([BODY_HTML])
+    sel = {**_SEL, "report_idx": [0, 1, 2, 3, 4]}
+    with patch("app.prompts.deep_dive.get_provider", return_value=fp):
+        t = write_topic(sel, [_report(i) for i in range(5)], {"market": "m"})
+    assert len(t.sources) == 3 and t.sources[0] == "증권사0 · 리포트 0 (9/9)"
+
+
 def test_write_topic_header_without_source():
     fp = FakeProvider([BODY_HTML])
     sel = {**_SEL, "source": ""}

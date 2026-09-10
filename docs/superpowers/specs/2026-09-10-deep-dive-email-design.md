@@ -184,3 +184,27 @@ class DeepDive:
 - 이메일 구독자 관리 (수신자 1명 고정)
 - 웹 리서치 프롬프트 자체 수정 (딥다이브는 기존 결과를 재사용)
 - Fear & Greed 418 오류 수정
+
+---
+
+## 개정 (2026-09-10 ~ 11)
+
+### 형식 — '월가소식' 그대로 (사용자 피드백)
+첫 발송분(대시보드 5섹션 + 5인 시선 + 딥다이브 3개, 렌더 높이 5,700px)에 "너무 주절주절, 다 때려박은 느낌" 피드백.
+사용자 결정: **참고 이미지와 똑같이**. 그에 따라
+
+- 대시보드·5인 시선 **제거**. 이메일 = 제목 목차 → 작성자·날짜 → 안내 박스 → 전체 요약(주제당 1줄) → 주제 3개.
+- 주제 섹션 = 형광펜 헤더 `이모지 문장형 헤드라인 (주 출처)` + **문단 2개, 500자 안팎**, 담담한 "~습니다"체(용어 풀이 괄호 금지) + 자료 줄(최대 3건).
+- 분량은 프롬프트만 믿지 않고 코드로 강제: 650자 초과 또는 3문단 이상이면 1회 압축 재작성, 실패 시 앞 2문단만.
+- `DeepDiveTopic`에 `title`(목차용)·`headline`(헤더 문장)·`source`(주 출처) 분리. `render_daily_brief(brief_date, deep_dive, run_id)`.
+- 러너는 `scan_themes`·`build_market_overview`·`gather_opinions`를 더 호출하지 않음(LLM 호출 7회 감소). `mrkdwn_html` 삭제.
+
+### 수집기 — 네이버 API 전환
+2026-09-10 `finance.naver.com/research/*`가 `stock.naver.com/research/daily`로 302 이전. HTML 파싱 폐기,
+`m.stock.naver.com/api/research/{market|invest|industry|economy|company}?page&pageSize` (목록) +
+`/api/research/{cat}/{researchId}` (상세: `content` 요약 HTML, `attachUrl` PDF)로 교체. 발췌 = 요약 텍스트 + PDF 앞 3페이지.
+
+### 운영 관찰
+- Claude CLI 사용 한도에 세 번 걸림(9/10 00:34, 08:30 정기 실행, 20:30). 08:30 정기 실행은 개요 생성 단계에서 실패해 **미발송**(rc=1, 게이트 미커밋 → 다음 날 재시도).
+  딥다이브 호출엔 3회 백오프 재시도를 넣었고 개요·5인 호출은 제거됐지만, 한도 자체는 남은 리스크. API 프로바이더 폴백은 비용 결정이 필요해 미구현.
+- 러너 `--report-date YYYY-MM-DD`로 미리보기 시 리포트 기준일을 바꿀 수 있음(새벽엔 당일 리포트가 0건).
