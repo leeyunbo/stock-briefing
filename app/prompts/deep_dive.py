@@ -1,14 +1,18 @@
-"""딥다이브 — 증권사 리포트 + 웹 리서치로 주제 3개를 골라 '월가소식' 형식으로 쓴다.
+"""딥다이브 — 증권사 리포트 + 웹 리서치로 '오늘 시장의 큰 흐름' 2가지를 토스 리서치식으로 쉽게 쓴다.
 
-형식(사용자가 준 뉴스레터 스크린샷 기준):
+목적(사용자 확정, 2026-09-12): 종목 추천이 아니라 거시 흐름 이해. 매일 읽으면 투자 방향을 스스로
+생각할 수 있는 수준이 되는 것. 투자 초심자(함께 읽는 사람)도 이해할 수 있게.
+
+형식:
 - 제목 = 주제별 짧은 목차 문구를 " / "로 연결.
-- 전체 요약 = 주제당 한 줄 불릿.
-- 주제별 섹션 = 형광펜 헤더 "문장형 헤드라인 (주 출처)" + 문단 2개(≈500자), 담담한 "~습니다"체.
+- 오늘 시장 한 줄 = 문장 하나.
+- 주제(2개) = 형광펜 헤더 "문장형 헤드라인 (주 출처)" + 3단 섹션
+  「무슨 일이에요?」→「왜 중요해요?」→「그래서요?」각 2문장, "~해요"체, 주제당 350자 안팎.
 
 2단계:
-1) select_topics: 리포트 목록 + 웹 리서치 요약 → 주제 JSON.
-2) write_topic: 주제별 근거 자료 → 본문 HTML(<p> 2개). 길면 1회 압축 재작성. 병렬.
-마지막에 요약 불릿. 모든 실패는 축소(None/빈 리스트).
+1) select_topics: 리포트 목록 + 웹 리서치 요약 → 거시 주제 JSON.
+2) write_topic: 주제별 근거 자료 → <p> 3개(각 <strong>소제목</strong>으로 시작). 길면 1회 압축. 병렬.
+마지막에 한 줄 요약. 모든 실패는 축소(None/빈 리스트).
 """
 
 from __future__ import annotations
@@ -28,87 +32,114 @@ from app.summarizer import get_provider, strip_code_block
 
 logger = logging.getLogger(__name__)
 
-MIN_TOPICS = 2
-MAX_TOPICS = 3
+MIN_TOPICS = 1
+MAX_TOPICS = 2
+SECTION_LABELS = ("무슨 일이에요?", "왜 중요해요?", "그래서요?")
 ALLOWED_TAGS = {"p", "strong", "em"}
-MAX_PARAGRAPHS = 2
-MAX_BODY_CHARS = 650        # 이 이상이면 1회 압축 재작성
-TARGET_BODY_CHARS = 500
+MAX_PARAGRAPHS = len(SECTION_LABELS)
+MAX_BODY_CHARS = 450        # 이 이상이면 1회 압축 재작성
+TARGET_BODY_CHARS = 350
+MAX_SOURCES = 3             # 자료 줄에 표기할 리포트 수
 _EXCERPT_FOR_SELECT = 300   # 선정 단계엔 리포트 발췌 앞부분만
 _RESEARCH_FOR_WRITE = 2500  # 작성 단계 웹 리서치 상한(키당)
 _TRIES = 3
-MAX_SOURCES = 3            # 자료 줄에 표기할 리포트 수
 _RETRY_SLEEP = 5  # 초 × 시도 횟수 (CLI 한도·빈 응답 같은 일시 실패 대비)
 
 
 @dataclass
 class DeepDiveTopic:
-    title: str        # 제목 목차용 짧은 문구 (예: 버블 경보가 풀린 코스피?)
-    headline: str     # 섹션 헤더 문장 (예: 코스피, 버블 경보가 풀렸습니다)
+    title: str        # 제목 목차용 짧은 문구 (예: 금리, 내리는 게 아니라 올린다?)
+    headline: str     # 섹션 헤더 문장 (예: 연준이 금리를 올릴 수도 있어요)
     emoji: str
-    source: str       # 주 출처 기관 (예: BofA) — 헤더 괄호에 표기
-    body_html: str
+    source: str       # 주 출처 기관 (예: 신한투자증권) — 헤더 괄호에 표기
+    body_html: str    # <p> 3개, 각 <strong>소제목</strong>으로 시작
     sources: list[str] = field(default_factory=list)
 
     @property
     def header(self) -> str:
         return f"{self.headline} ({self.source})" if self.source else self.headline
 
+    @property
+    def sections(self) -> list[tuple[str, str]]:
+        """(소제목, 본문 HTML) 목록. 소제목 없는 문단은 라벨 ""."""
+        out: list[tuple[str, str]] = []
+        for p in BeautifulSoup(self.body_html, "html.parser").find_all("p"):
+            first = p.find("strong")
+            label = ""
+            if first is not None and p.contents and p.contents[0] is first:
+                label = first.get_text(strip=True).rstrip(":：")
+                first.decompose()
+            inner = p.decode_contents().strip().lstrip(":： ")
+            if inner:
+                out.append((label, inner))
+        return out
+
 
 @dataclass
 class DeepDive:
-    summary: list[str]
+    summary: list[str]  # 한 줄(요소 1개)
     topics: list[DeepDiveTopic]
 
 
-TONE = """[문체]
-- 신문 해설 기사처럼 담담한 "~습니다"체. 감탄·권유·따뜻한 말투 금지.
-- 용어 풀이용 괄호 금지. 괄호는 출처·수치 보충에만 씁니다. 예: (BofA), (7월 초 80% → 44.5%).
-- 모든 문장에 정보가 있어야 합니다. 도입·정리·인사 문장 금지.
-- 숫자는 구체적으로. 비교 기준(과거·타 지수·컨센서스)을 붙입니다."""
+TONE = """[문체 — 토스 리서치처럼]
+- 친구에게 설명하듯 "~해요"체. 짧은 문장. 한 문장에 정보 하나.
+- 투자 초심자가 읽습니다. 어려운 용어는 처음 나올 때 한 번만 쉬운 말로 풀어요.
+  예: "10년물 국채 금리(미국 정부가 10년 돈을 빌릴 때 내는 이자)". 두 번째부터는 그냥 써요.
+- 숫자는 꼭 비교 기준과 함께. 예: "4.85%로 2023년 11월 이후 가장 높아요".
+- 감탄·과장·홍보 금지. 출처는 기관명만 괄호로."""
 
 
-SELECT_SYSTEM = """당신은 개인 투자자용 아침 뉴스레터의 에디터입니다.
-오늘 나온 증권사 리포트 목록과 웹 리서치 요약을 읽고, 오늘 다룰 주제 3개를 고릅니다(자료가 빈약하면 2개).
+SELECT_SYSTEM = """당신은 투자 초심자도 읽는 아침 뉴스레터의 에디터입니다.
+오늘 나온 증권사 리포트 목록과 웹 리서치 요약을 읽고, '지금 시장이 왜 이렇게 움직이는지'를 이해하는 데
+가장 중요한 *거시 흐름* 주제 2개를 고릅니다.
+
+[반드시 지킬 것]
+- 개별 종목·종목 추천·목표주가는 주제로 삼지 않습니다. 종목은 흐름을 설명하는 예시로만 등장할 수 있어요.
+- 거시 흐름 = 금리·물가·환율·유가·경기·중앙은행/정부 정책·수급·큰 산업 사이클(반도체·AI 투자·에너지 등).
 
 [선정 기준 — 중요한 순서]
-1. 기관(증권사·IB·통계기관)의 *구체적 숫자*가 있는가. 숫자 없는 주제는 뒤로.
-2. 내 레이더(마벨·아마존·알파벳·네이버·SK하이닉스)나 테마(반도체·AI SW·로봇·M7)와 연관되면 가산점.
-3. 하루짜리 등락이 아니라 몇 주~몇 달 가는 흐름인가.
-4. 주제끼리 축이 다르게 — 한국 시장 / 미국·거시 / 산업·테마.
+1. 오늘 시장 움직임의 *원인*을 설명하는가 (지수가 왜 올랐/내렸는지, 돈이 어디로 가는지).
+2. 기관(증권사·중앙은행·통계기관)의 구체적 숫자가 있는가.
+3. 하루짜리가 아니라 몇 주~몇 달 가는 흐름인가.
+4. 두 주제의 축이 다르게 — 예: 하나는 금리/거시, 하나는 산업 사이클 또는 한국 시장.
 
 [출력] JSON 배열만. 설명 금지. 각 원소:
-{"title": "제목 목차용 10~14자 문구. 예: 버블 경보가 풀린 코스피?",
- "headline": "섹션 헤더 문장. 예: 코스피, 버블 경보가 풀렸습니다",
- "emoji": "섹션 앵커 이모지 1개 (🇰🇷 🇺🇸 🌍 🔬 🤖 💾 ⚡ 등)",
- "source": "이 주제의 주 출처 기관 짧게. 예: BofA, 신한투자증권, JPM. 없으면 빈 문자열",
+{"title": "제목 목차용 10~14자 문구. 예: 금리, 내리는 게 아니라 올린다?",
+ "headline": "섹션 헤더 문장, 쉬운 말. 예: 연준이 금리를 올릴 수도 있어요",
+ "emoji": "섹션 앵커 이모지 1개 (🇺🇸 🇰🇷 🌍 🛢️ 💵 🏦 💾 ⚡ 등)",
+ "source": "주 출처 기관 짧게. 예: 신한투자증권, 미 연준. 없으면 빈 문자열",
  "why": "왜 오늘 이 주제인지 한 문장",
  "report_idx": [근거가 되는 리포트 번호들],
- "research_keys": [관련 웹 리서치 키: "market" | "themes" | 종목 티커]}"""
+ "research_keys": [관련 웹 리서치 키: "market" | "themes"]}"""
 
 
-WRITE_SYSTEM = """당신은 개인 투자자용 아침 뉴스레터의 필자입니다. 아래 근거 자료(증권사 리포트 발췌 + 웹 리서치)만 사용해
+WRITE_SYSTEM = """당신은 투자 초심자도 읽는 아침 뉴스레터의 필자입니다. 아래 근거 자료(증권사 리포트 발췌 + 웹 리서치)만 사용해
 오늘의 주제 하나를 씁니다. 자료에 없는 숫자·사실은 절대 쓰지 않습니다.
 
-[구성 — 정확히 문단 2개]
-1문단: 무슨 일이 있었고 숫자가 무엇인지. 출처 기관을 괄호로. 그 숫자가 왜 의미 있는지 한두 문장(과거 이력·비교 대상).
-2문단: 결론을 한 문장으로 못 박고("안전해졌다가 아니라 상승에 베팅할 수 있다는 쪽입니다" 식), 자료에 있으면 실행 아이디어 한 문장,
-      마지막에 "다만 ~" 으로 반론·단서 한 문장.
+[구성 — 정확히 문단 3개, 각 문단은 <strong>소제목</strong>으로 시작]
+<p><strong>무슨 일이에요?</strong> 무슨 일이 있었고 숫자가 무엇인지, 2문장.</p>
+<p><strong>왜 중요해요?</strong> 그 숫자가 시장·경제에 어떤 의미인지, 인과 관계로 2문장. (예: 금리가 오르면 → 미래 이익이 큰 성장주가 불리해져요)</p>
+<p><strong>그래서요?</strong> 앞으로 무엇을 지켜보면 되는지, 어떤 국면인지 2문장. 마지막 문장은 "다만 ~" 단서.</p>
+
+[절대 금지]
+- 사라/팔아라/비중을 늘려라 같은 매매 지시. 특정 종목 추천. "그래서요?"는 판단 재료까지만.
+- 소제목 외의 제목, 불릿, 표, 마크다운, 코드블록.
 
 {tone}
 
 [출력 규칙]
 - 전체 {target}자 안팎(공백 포함). 절대 {limit}자를 넘기지 않습니다.
-- HTML만 출력. <p> 2개, 안에서 <strong>은 핵심 숫자·결론 한 곳씩만. 그 외 태그·마크다운·코드블록·소제목 금지."""
+- HTML만 출력. <p> 3개. 소제목 외에 <strong>은 핵심 숫자 한 곳에만."""
 
 
-COMPRESS_SYSTEM = """아래 글을 같은 문체("~습니다"체, 괄호 풀이 금지)로 {target}자 안팎으로 압축합니다.
-문단 2개 유지. 숫자·출처·결론·"다만" 단서는 남기고 수식어와 반복을 지웁니다. HTML <p> 2개만 출력."""
+COMPRESS_SYSTEM = """아래 글을 같은 문체("~해요"체)로 {target}자 안팎으로 압축합니다.
+<p> 3개와 각 문단 첫머리의 <strong>소제목</strong>은 그대로 두고, 숫자·출처·"다만" 단서는 남기고 수식어와 반복을 지웁니다.
+HTML <p> 3개만 출력."""
 
 
-SUMMARY_SYSTEM = """아래 주제들을 각각 한 문장으로 요약합니다. 주제 순서대로 한 줄씩, 주제 수만큼만.
-각 문장은 핵심 숫자 하나와 결론을 담은 "~습니다"체. 용어 풀이 괄호 금지.
-[출력] "- " 로 시작하는 줄만. 다른 말 금지."""
+SUMMARY_SYSTEM = """아래 주제들을 읽고 '오늘 시장을 한 문장으로' 정리합니다.
+투자 초심자도 이해하는 "~해요"체 한 문장, 60자 안팎, 핵심 숫자 하나 포함. 용어 풀이 괄호 금지.
+[출력] 문장 하나만. 불릿·따옴표·다른 말 금지."""
 
 
 # ── 유틸 ──
@@ -173,21 +204,17 @@ def _source_label(r: ResearchReport) -> str:
 
 
 def _research_keys_available(research: dict) -> list[str]:
-    keys = [k for k in ("market", "themes") if research.get(k)]
-    keys += [t for t, v in (research.get("stocks") or {}).items() if v]
-    return keys
+    return [k for k in ("market", "themes") if research.get(k)]
 
 
 def _research_text(research: dict, key: str) -> str:
-    if key in ("market", "themes"):
-        return (research.get(key) or "")[:_RESEARCH_FOR_WRITE]
-    return ((research.get("stocks") or {}).get(key) or "")[:_RESEARCH_FOR_WRITE]
+    return (research.get(key) or "")[:_RESEARCH_FOR_WRITE]
 
 
 # ── 1단계: 주제 선정 ──
 
 def select_topics(reports: list[ResearchReport], research: dict, run_id: str = "") -> list[dict]:
-    """주제 2~3개를 dict 리스트로 반환. 실패·부족 시 빈 리스트."""
+    """거시 주제 1~2개를 dict 리스트로 반환. 실패 시 빈 리스트."""
     lines = ["[리포트 목록]"]
     for i, r in enumerate(reports):
         excerpt = re.sub(r"\s+", " ", r.excerpt)[:_EXCERPT_FOR_SELECT]
@@ -232,7 +259,7 @@ def select_topics(reports: list[ResearchReport], research: dict, run_id: str = "
 # ── 2단계: 본문 작성 ──
 
 def _fit_body(provider, body: str, label: str) -> str:
-    """문단 2개·글자 상한을 강제한다. 넘치면 1회 압축 재작성, 그래도 넘치면 문단만 자른다."""
+    """문단 3개·글자 상한을 강제한다. 넘치면 1회 압축 재작성, 그래도 넘치면 문단만 자른다."""
     paras = _paragraphs(body)
     if len(paras) <= MAX_PARAGRAPHS and _text_len(body) <= MAX_BODY_CHARS:
         return "".join(paras)
@@ -290,6 +317,7 @@ def write_topic(sel: dict, reports: list[ResearchReport], research: dict, run_id
 
 
 def _summarize(topics: list[DeepDiveTopic], run_id: str = "") -> list[str]:
+    """'오늘 시장 한 줄' — 문장 하나를 리스트(길이 1)로."""
     text = "\n\n".join(
         f"## {t.headline}\n{BeautifulSoup(t.body_html, 'html.parser').get_text(' ')}" for t in topics
     )
@@ -299,14 +327,15 @@ def _summarize(topics: list[DeepDiveTopic], run_id: str = "") -> list[str]:
     except Exception as e:
         logger.warning("딥다이브 요약 실패: %s", e)
         return []
-    bullets = [re.sub(r"^[-•*]\s*", "", ln).strip() for ln in strip_code_block(raw).splitlines() if ln.strip()]
-    return [b.replace("**", "") for b in bullets if b][: len(topics)]
+    lines = [re.sub(r"^[-•*]\s*", "", ln).strip().strip('"“”') for ln in strip_code_block(raw).splitlines() if ln.strip()]
+    lines = [ln.replace("**", "") for ln in lines if ln]
+    return lines[:1]
 
 
 # ── 진입점 ──
 
 async def build_deep_dive(research: dict, reports: list[ResearchReport], run_id: str = "") -> DeepDive | None:
-    """주제 선정 → 본문 병렬 작성 → 요약. 주제가 하나도 안 나오면 None."""
+    """주제 선정 → 본문 병렬 작성 → 한 줄 요약. 주제가 하나도 안 나오면 None."""
     logger.info("딥다이브 시작: 리포트 %d건", len(reports))
     selected = await to_thread(select_topics, reports, research, run_id)
     if not selected:

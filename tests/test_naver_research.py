@@ -151,3 +151,24 @@ async def test_collect_reports_detail_failure_skips_row():
     with patch("app.collector.naver_research.get_http_client", return_value=_client(fake_get)):
         rows = await collect_reports(target=date(2026, 9, 10))
     assert rows == []
+
+
+@pytest.mark.asyncio
+async def test_collect_reports_categories_filter_skips_company():
+    market = _load("naver_api_market_list.json")[:1]
+    detail = _load("naver_api_market_detail.json")
+    seen = []
+
+    async def fake_get(url, **kw):
+        seen.append(url)
+        if url.endswith(".pdf"):
+            raise httpx.ConnectError("no pdf")
+        if "?page=" in url:
+            return _resp(market if "/market?" in url else [], url)
+        return _resp(detail, url)
+
+    from app.collector.naver_research import MACRO_CATEGORIES
+    with patch("app.collector.naver_research.get_http_client", return_value=_client(fake_get)):
+        rows = await collect_reports(target=date(2026, 9, 10), categories=MACRO_CATEGORIES)
+    assert len(rows) == 1
+    assert not any("/research/company" in u for u in seen)

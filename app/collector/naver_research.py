@@ -40,6 +40,9 @@ CATEGORIES: dict[str, str] = {
     "종목": "company",
 }
 
+# 거시 흐름용 (종목분석 제외). 러너 기본값.
+MACRO_CATEGORIES: tuple[str, ...] = ("시황", "투자전략", "산업", "경제")
+
 PER_CATEGORY_LIMIT = 15
 TOTAL_LIMIT = 40
 PDF_MAX_PAGES = 3
@@ -177,18 +180,24 @@ def _watch_codes() -> set[str]:
     return {t.split(".")[0] for t, _ in WATCHLIST if t.endswith((".KS", ".KQ"))}
 
 
-async def collect_reports(target: date | None = None) -> list[ResearchReport]:
-    """당일 증권사 리포트를 수집해 발췌까지 채운 리스트를 반환한다. 실패는 축소."""
+async def collect_reports(
+    target: date | None = None, categories: tuple[str, ...] | list[str] | None = None
+) -> list[ResearchReport]:
+    """당일 증권사 리포트를 수집해 발췌까지 채운 리스트를 반환한다. 실패는 축소.
+
+    categories: 수집할 카테고리 표시명. 기본은 전체(CATEGORIES). 거시 전용은 MACRO_CATEGORIES.
+    """
     target = target or datetime.now(_KST).date()
+    cats = [c for c in (categories or CATEGORIES) if c in CATEGORIES]
     client = get_http_client()
     lists = await asyncio.gather(
-        *[_fetch_list(client, c, target) for c in CATEGORIES],
+        *[_fetch_list(client, c, target) for c in cats],
         return_exceptions=True,
     )
     watch = _watch_codes()
     selected: list[ResearchReport] = []
     counts: dict[str, int] = {}
-    for category, rows in zip(CATEGORIES, lists):
+    for category, rows in zip(cats, lists):
         if isinstance(rows, BaseException):
             logger.warning("리포트 목록 예외 (%s): %s", category, rows)
             continue
