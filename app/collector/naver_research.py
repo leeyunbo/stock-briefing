@@ -105,12 +105,20 @@ def parse_list(items: list, category: str) -> list[ResearchReport]:
     return out
 
 
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def clean_text(text: str) -> str:
+    """널 문자 등 제어 문자를 제거한다. (PDF 텍스트에 \x00이 섞이면 subprocess 인자로 못 넘김)"""
+    return _CONTROL_CHARS.sub("", text or "")
+
+
 def html_to_text(html: str) -> str:
     """상세 content(HTML)를 공백 정리된 텍스트로."""
     if not html:
         return ""
     text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
-    return re.sub(r"\s+", " ", text).strip()
+    return clean_text(re.sub(r"\s+", " ", text)).strip()
 
 
 def extract_pdf_text(data: bytes, max_pages: int = PDF_MAX_PAGES) -> str:
@@ -122,7 +130,7 @@ def extract_pdf_text(data: bytes, max_pages: int = PDF_MAX_PAGES) -> str:
     for page in reader.pages[:max_pages]:
         parts.append(page.extract_text() or "")
     text = "\n".join(parts)
-    return re.sub(r"[ \t]+", " ", text).strip()
+    return clean_text(re.sub(r"[ \t]+", " ", text)).strip()
 
 
 async def _fetch_list(client: httpx.AsyncClient, category: str, target: date) -> list[ResearchReport]:

@@ -10,7 +10,9 @@ import pytest
 
 from app.collector.naver_research import (
     ResearchReport,
+    clean_text,
     collect_reports,
+    extract_pdf_text,
     html_to_text,
     parse_list,
 )
@@ -45,6 +47,18 @@ def test_parse_company_list_has_ticker():
 def test_parse_garbage_returns_empty():
     assert parse_list([{"foo": 1}, "x", None], "시황") == []
     assert parse_list([], "시황") == []
+
+
+def test_clean_text_removes_control_chars():
+    assert clean_text("a\x00b\x01c\td\ne") == "abc\td\ne"
+    assert html_to_text("<p>널\x00문자</p>") == "널문자"
+
+
+def test_extract_pdf_text_strips_null_bytes():
+    with patch("pypdf.PdfReader") as reader:
+        page = type("P", (), {"extract_text": lambda self: "본문\x00텍스트"})()
+        reader.return_value.pages = [page]
+        assert extract_pdf_text(b"%PDF") == "본문텍스트"
 
 
 def test_html_to_text_strips_tags_and_nbsp():
