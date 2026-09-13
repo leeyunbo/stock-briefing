@@ -245,3 +245,9 @@ LLM이 줄기를 잘못 갱신해도 오래 어긋나지 않도록 **토요일(w
 - `naver_research.clean_text`: PDF 텍스트의 널 바이트(`\x00`)가 subprocess 인자로 못 넘어가 파이프라인 전체가 실패하던 문제.
 - `summarizer.ClaudeCliProvider`: `stdin=subprocess.DEVNULL`. CLI가 stdin을 3초 기다린 뒤 경고와 함께 실패.
 - `market_map._strip_fence`: `strip_code_block`이 마지막 HTML 태그 뒤를 잘라 JSON을 망가뜨려 자체 펜스 제거 사용.
+
+### 수신자 2명 (2026-09-13)
+`BRIEF_MAIL_TO`를 쉼표 구분 목록으로 확장(`servers1@naver.com,limon@kakao.com`). 러너가 `_recipients()`로 파싱하고
+레포의 `send_briefing_to_subscribers()`로 **각자에게 따로** 발송한다(수신자끼리 주소가 보이지 않음).
+실패 정책: 전원 실패면 rc=1(게이트 미커밋 → 다음 날 재시도), 일부만 실패하면 경고만 남기고 진행한다.
+재발송하면 이미 받은 쪽이 중복 수신하기 때문이다.
