@@ -100,6 +100,7 @@ class ClaudeCliProvider:
             text=True,
             timeout=self.timeout,
             env=env,
+            stdin=subprocess.DEVNULL,  # CLI가 stdin을 3초간 기다리다 경고 후 실패하는 것 방지
         )
         if result.returncode != 0:
             raise RuntimeError(f"claude CLI 에러: {result.stderr}")
