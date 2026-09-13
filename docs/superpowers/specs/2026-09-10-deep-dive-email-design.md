@@ -218,3 +218,30 @@ class DeepDive:
 - 템플릿: 소제목을 파란 라벨로 렌더(`DeepDiveTopic.sections`), 요약은 왼쪽 파란 줄 박스.
 - 결과: 렌더 높이 1,534px(1차 5,772 → 2차 2,192 → 3차 1,534). 9/12 23:25 사용자에게 시험 발송.
 - 수신자 2명(여자친구분)은 주소 받으면 `BRIEF_MAIL_TO`를 쉼표 목록으로 확장 예정 — 러너 `send_email` 호출을 수신자별로 반복.
+
+### 3차 개정 (2026-09-13) — '시장 지도': 같은 변수를 매일 추적
+사용자: "소제목으로 나누는 것보다 컴팩트하게. 거시적인 내용은 매일 똑같은 내용만 나올 것 같은데, 더 좋은 구성이 있을까?"
+
+진단: 거시 서사는 몇 주 단위로 이어져서 "오늘 무슨 일" 형식이면 매일 같은 이야기에 숫자만 바뀐다. 거시를 이해한다는 건
+같은 변수 몇 개를 계속 추적하는 것이므로, 형식이 그 추적을 도와야 한다. 소제목 3단은 틀이 내용보다 먼저 보여 제거.
+
+**구성** (`app/prompts/market_map.py`, LLM 호출 1회 JSON)
+1. `one_liner` — 오늘 시장 한 줄.
+2. `threads` 2~4개 — 지금 시장을 움직이는 거시 서사. `id` 유지로 날짜가 바뀌어도 같은 줄기를 추적하고,
+   `direction`은 어제 대비 강도(`up` 강해짐 / `flat` 그대로 / `down` 약해짐 / `new` 새 줄기). `since`로 등장일 보존.
+   화면엔 화살표 + 한 줄 현황(70자)만.
+3. `change` — 어제 줄기와 비교해 *정말 새로 생긴 것* 하나, 문단 2개(400자). 없으면 `null` → "새로 생긴 건 없어요".
+4. `concept` — 오늘 용어 하나 3문장. `recent_concepts`(최근 10개)로 중복 회피. 덕분에 본문의 용어 풀이 괄호를 전부 제거.
+5. `watch` — 이번 주 일정 2개.
+
+**상태 보관**: 러너가 `~/Project/morning-brief/narratives.json`에 `{updated, threads[], recent_concepts[]}` 저장.
+LLM이 줄기를 잘못 갱신해도 오래 어긋나지 않도록 **토요일(weekday==5)엔 `reset=True`**로 줄기를 처음부터 다시 잡는다.
+러너 옵션: `--reset`(강제 재정비), `--no-state`(미리보기 반복 시 상태 미갱신).
+
+**검증**: 1일차(9/11 리포트 40건) → 줄기 4개 모두 `new`. 2일차 시뮬레이션 → 3개가 id·since를 유지한 채
+`flat/up/up`으로 갱신되고 1개 교체, 개념 이력에 `FOMC` 누적(중복 없음). 렌더 높이 1,301px.
+
+**부수 수정**
+- `naver_research.clean_text`: PDF 텍스트의 널 바이트(`\x00`)가 subprocess 인자로 못 넘어가 파이프라인 전체가 실패하던 문제.
+- `summarizer.ClaudeCliProvider`: `stdin=subprocess.DEVNULL`. CLI가 stdin을 3초 기다린 뒤 경고와 함께 실패.
+- `market_map._strip_fence`: `strip_code_block`이 마지막 HTML 태그 뒤를 잘라 JSON을 망가뜨려 자체 펜스 제거 사용.
